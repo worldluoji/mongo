@@ -1,0 +1,50 @@
+1. Which is the most succinct query to return all documents from the sample_training.
+inspections collection where the inspection date is either "Feb 20 2015", or "Feb 21 2015" 
+and the company is not part of the "Cigarette Retail Dealer - 127" sector?
+
+  db.inspections.find(
+    { "$or": [ { "date": "Feb 20 2015" },
+               { "date": "Feb 21 2015" } ],
+      "sector": { "$ne": "Cigarette Retail Dealer - 127" }}).pretty()
+  This is correct.
+  
+  This query accounts for both dates that we are looking for and excludes all documents where the sector is "Cigarette Retail Dealer - 127" by using the $ne not equal comparison operator.
+  
+   COPY
+  db.inspections.find(
+    { "$or": [ { "date": "Feb 20 2015" },
+               { "date": "Feb 21 2015" }],
+      "$not": { "sector": "Cigarette Retail Dealer - 127" }}).pretty()
+  This is incorrect.
+  
+  While this query looks for the right dates and correctly uses the $or operator, 
+  it is incorrectly using the $not logic operator. $not negates a logical expression, 
+  and in this case, will result in an error.
+  
+  
+   COPY
+  db.inspections.find(
+    { "$and": [
+        { "$or": [
+                   { "date": "Feb 20 2015" },
+                   { "date": "Feb 21 2015" } ] },
+        {"sector": { "$ne":"Cigarette Retail Dealer - 127" }}]
+    }).pretty()
+  This is incorrect.
+  
+  This statement will return the correct documents, but it is unnecessarily using the $and operator 
+  and thus can not be the best way to get the required documents.
+
+
+  2. How many companies in the sample_training.companies dataset were
+
+  either founded in 2004
+  
+  [and] either have the social category_code [or] web category_code,
+  [or] were founded in the month of October
+  
+  [and] also either have the social category_code [or] web category_code?
+
+  db.companies.find({"$or": [{"$and": [{"founded_year":2004},{"$or":[{"category_code":"social"},{"category_code":"web"}]}]},
+  {"$and": [{"founded_month":10},{"$or":[{"category_code":"social"},{"category_code":"web"}]}]}]}).count();
+

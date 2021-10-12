@@ -169,3 +169,69 @@ You can definitely change the default value to a different value or data type,
 as long as they are unique to this collection and not an array data type.
 
 _id是Document的唯一标识
+
+10. logic operator
+db.routes.find({ "$and": [ { "$or" :[ { "dst_airport": "KZN" },
+                                    { "src_airport": "KZN" }
+                                  ] },
+                          { "$or" :[ { "airplane": "CR2" },
+                                     { "airplane": "A81" } ] }
+                         ]}).pretty()
+
+默认就是and,比如
+db.routes.find({ "dst_airport": "KZN" },
+{ "src_airport": "KZN" }) 则两个条件都要满足.
+像上面的语句$or使用了不只一次，就显示指定$and
+
+$nor 即是 $or取非，意为都不满足的
+{"$nor": [{statement1},{statement2}...]}
+
+$not和$nor、$or、$and用法不同：
+{"$not": {statement}}
+$not only negates a logical expression, 后面statement必须是一个logic表达式,例如:
+db.inventory.find( { price: { $not: { $gt: 1.99 } } } )
+
+
+11. $expr
+$expr also allows us to use variables and conditional statements.
+It's expressive, meaning it can do more than one simple operation.
+It allows the use of aggregation expressions within the query language, and it uses this syntax.
+
+Find all documents where the trip started and ended at the same station:
+db.trips.find({ "$expr": { "$eq": [ "$end station id", "$start station id"] }
+              }).count()
+the $start station ID means the value 439
+
+Find all documents where the trip lasted longer than 1200 seconds, and started and ended at the same station:
+db.trips.find({ "$expr": { "$and": [ { "$gt": [ "$tripduration", 1200 ]},
+                         { "$eq": [ "$end station id", "$start station id" ]}
+                       ]}}).count()
+
+12. array operator
+The correct functionality of the $push operator is that when the field is not an array, 
+the operation will fail. However, if the field is absent in the document to update, 
+$push adds the array field with the value as its element.
+
+The $push operator add a value into an array;
+The second functionality of the $push operator is that when the field is not an array, 
+the operation will fail. However, if the field is absent in the document to update, 
+$push adds the array field with the value as its element.
+
+The "$size" array operator will return all documents where the specified array field is exactly the given length.
+
+The "$all" array operator will return a cursor with all documents in which the specified array field contains all the given elements, regardless of their order in the array.
+
+When querying an array field with an array match, MongoDB will look for an exact array match, unless specified otherwise.
+
+When querying an array field with a single element, MongoDB will return all documents where the specified array field contains this given element.
+
+db.listingsAndReviews.find({ "amenities": {
+  "$size": 20,
+  "$all": [ "Internet", "Wifi",  "Kitchen",
+           "Heating", "Family/kid friendly",
+           "Washer", "Dryer", "Essentials",
+           "Shampoo", "Hangers",
+           "Hair dryer", "Iron",
+           "Laptop friendly workspace" ]
+         }
+}).pretty()
