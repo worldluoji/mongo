@@ -69,7 +69,9 @@ reference：https://docs.mongodb.com/database-tools/mongoimport/#compatibility
 
 7. common operations
 1) connect to a mongodb
-mongo "mongodb+srv://<username>:<password>@<cluster>.mongodb.net/admin"
+使用mongo shell
+mongosh "mongodb+srv://luoji-mongo-cluster.ejuuu.mongodb.net/myFirstDatabase" --username m001-student
+使用官方命令框终端直接使用mongo即可:
 mongo "mongodb+srv://luoji-mongo-cluster.ejuuu.mongodb.net/myFirstDatabase" --username m001-student
 
 2) dbs and collections
@@ -88,6 +90,7 @@ db.zips.find({"state": "NY"}).count()
 db.zips.find({"state": "NY", "city": "ALBANY"})
 db.zips.find({"state": "NY", "city": "ALBANY"}).pretty()
 db.inspections.findOne(); // 只查询一条
+db.zips.find({pop: {"$lt":1000}}).count() // 查询pop小于1000的
 
 4）insert
 db.inspections.insert({
