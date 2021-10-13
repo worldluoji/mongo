@@ -318,3 +318,41 @@ db.companies.find({ "relationships":
                       { "$elemMatch": { "is_past": true,
                                         "person.first_name": "Mark" } } },
                   { "name": 1 }).count()
+
+15. aggregation framework
+The aggregation framework, in its simplest form, is just another way to query data in MongoDB.
+With the aggregation framework, we can compute and reshape data.
+
+use sample_airbnb
+
+1) $project、$group、$sum
+find all documents that have Wifi as one of the amenities. Only include price and address in the resulting cursor.
+db.listingsAndReviews.find({ "amenities": "Wifi" },
+                           { "price": 1, "address": 1, "_id": 0 }).pretty()
+
+Using the aggregation framework find all documents that have Wifi as one of the amenities``*. Only include* ``price and address in the resulting cursor.
+db.listingsAndReviews.aggregate([
+                                  { "$match": { "amenities": "Wifi" } },
+                                  { "$project": { "price": 1,
+                                                  "address": 1,
+                                                  "_id": 0 }}]).pretty()
+使用aggregate就像是一个pipline, $match是第一个filter,$project是第二个filter。注意aggregate里面使用"[]"包含
+各个filter.
+
+Find one document in the collection and only include the address field in the resulting cursor.
+db.listingsAndReviews.findOne({ },{ "address": 1, "_id": 0 })
+
+Project only the address field value for each document, then group all documents into one document per address.
+country value.
+db.listingsAndReviews.aggregate([ { "$project": { "address": 1, "_id": 0 }},
+                                  { "$group": { "_id": "$address.country" }}])
+
+Project only the address field value for each document, then group all documents into one document per address.
+country value, and count one for each document in each group.
+db.listingsAndReviews.aggregate([
+                                  { "$project": { "address": 1, "_id": 0 }},
+                                  { "$group": { "_id": "$address.country",
+                                                "count": { "$sum": 1 } } }
+                                ])
+
+2) sort and limit
