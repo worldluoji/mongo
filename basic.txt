@@ -280,3 +280,41 @@ Find all documents where the student had an extra credit score:
 db.grades.find({ "scores": { "$elemMatch": { "type": "extra credit" } }
                }).pretty()
 scores这个数组里，只要有一个元素的type字段为"extra credit"则可以匹配。这里数据里的一个元素是一个对象{...}
+
+14. sub document
+use sample_training
+
+relationships: [
+  {
+    is_past: false,
+    title: 'Co-Founder and VP, Social and Audience Development',
+    person: {
+      first_name: 'Michael',
+      last_name: 'Howell',
+      permalink: 'michael-howell'
+    }
+  },
+  .......
+
+db.companies.find({ "relationships.0.person.last_name": "Zuckerberg" },
+                  { "name": 1 }).pretty()
+
+relationships数组的第一个元素的first_name为Mark的：
+db.companies.find({ "relationships.0.person.first_name": "Mark",
+                    "relationships.0.title": { "$regex": "CEO" } },
+                  { "name": 1 }).count()
+
+$regex使用正则表达式
+db.companies.find({ "relationships.0.person.first_name": "Mark",
+                    "relationships.0.title": {"$regex": "CEO" } },
+                  { "name": 1 }).pretty()
+
+db.companies.find({ "relationships":
+                      { "$elemMatch": { "is_past": true,
+                                        "person.first_name": "Mark" } } },
+                  { "name": 1 }).pretty()
+
+db.companies.find({ "relationships":
+                      { "$elemMatch": { "is_past": true,
+                                        "person.first_name": "Mark" } } },
+                  { "name": 1 }).count()
