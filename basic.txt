@@ -414,3 +414,8 @@ db.iot.updateOne({ "sensor": r.sensor, "date": r.date,
 upsert is a hybird of insert and update
 默认upsert为false，不会开启，upsert为true则开启。
 开启后，如果能够匹配上，则update, 否则就insert一条新的document
+
+
+19. Compass时MongoDB官方推出的一个强大的运维管理端
+A graphical User Interface Product
+可以查看各个collection的可视化信息，查询某个collection中的数据，查看某个collection占用的空间等基本信息等等。
