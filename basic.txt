@@ -380,3 +380,37 @@ It is instead applied to the results set that lives in the cursor.
 After the cursor is populated with the filter data that's the result of the Find command, 
 we can then apply the sort() method, which will sort the data based on the criteria that we provided.
 不管sort还是limit在前面，sort都会先执行，再执行limit
+
+16. index
+索引，用于提高大数据时的查询，类似MySql中的索引。
+
+use sample_training
+
+db.trips.find({ "birth year": 1989 })
+
+db.trips.createIndex({ "birth year": 1 })
+It doesn't really matter whether the index was created in increasing or decreasing order 
+when it is a simple single-field index.
+-1表示decresing
+
+db.trips.find({ "start station id": 476 }).sort( { "birth year": 1 } )
+这里能用到birth year上的索引，然后再找到"start station id": 476 
+
+联合索引：
+db.trips.createIndex({ "start station id": 1, "birth year": 1 })
+
+17. data modeling
+Data modeling - a way to organize fields in a document to support your application performance
+and querying capabilities.
+
+18. upsert
+
+db.iot.updateOne({ "sensor": r.sensor, "date": r.date,
+                   "valcount": { "$lt": 48 } },
+                         { "$push": { "readings": { "v": r.value, "t": r.time } },
+                        "$inc": { "valcount": 1, "total": r.value } },
+                 { "upsert": true })
+
+upsert is a hybird of insert and update
+默认upsert为false，不会开启，upsert为true则开启。
+开启后，如果能够匹配上，则update, 否则就insert一条新的document
