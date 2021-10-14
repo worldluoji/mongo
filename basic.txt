@@ -356,3 +356,27 @@ db.listingsAndReviews.aggregate([
                                 ])
 
 2) sort and limit
+
+use sample_training
+
+db.zips.find().sort({ "pop": 1 }).limit(1)
+1表示升序，0表示降序
+
+db.zips.find({ "pop": 0 }).count()
+
+db.zips.find().sort({ "pop": -1 }).limit(1)
+
+db.zips.find().sort({ "pop": -1 }).limit(10)
+
+db.zips.find().sort({ "pop": 1, "city": -1 })
+
+The caveat with limit() is that if you use limit() without sort(), you will most likely get some results without any guarantee of its order.
+Similarly, if you use limit() before you sort(), you might miss some of the data that you meant to sort and include in the results set.
+Which is why MongoDB assumes that when you use sort() and limit(), you always mean to sort first, regardless of the order in which you type these.
+
+We already know other cursor methods, like pretty() and count(), so these two are an addition to our knowledge base.
+A cursor method is not applied to the data that is stored in the database.
+It is instead applied to the results set that lives in the cursor.
+After the cursor is populated with the filter data that's the result of the Find command, 
+we can then apply the sort() method, which will sort the data based on the criteria that we provided.
+不管sort还是limit在前面，sort都会先执行，再执行limit
