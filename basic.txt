@@ -92,6 +92,10 @@ db.zips.find({"state": "NY", "city": "ALBANY"}).pretty()
 db.inspections.findOne(); // 只查询一条
 db.zips.find({pop: {"$lt":1000}}).count() // 查询pop小于1000的
 
+db.trips.find({ "tripduration": { "$lte" : 70 },
+                "usertype": "Customer" }).pretty()
+查询tripduration <= 70的, 还有$eq, $ne, $lt, $gt, $gte......
+
 4）insert
 db.inspections.insert({
       "id" : "10021-2015-ENFO",
