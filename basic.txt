@@ -73,6 +73,10 @@ reference：https://docs.mongodb.com/database-tools/mongoimport/#compatibility
 mongosh "mongodb+srv://luoji-mongo-cluster.ejuuu.mongodb.net/myFirstDatabase" --username m001-student
 使用官方命令框终端直接使用mongo即可:
 mongo "mongodb+srv://luoji-mongo-cluster.ejuuu.mongodb.net/myFirstDatabase" --username m001-student
+使用mongo Compass
+mongodb+srv://<username>:<password>@luoji-mongo-cluster.ejuuu.mongodb.net/databaseName
+例如：
+mongodb+srv://m001-student:199114@luoji-mongo-cluster.ejuuu.mongodb.net/m201
 
 2) dbs and collections
 show dbs

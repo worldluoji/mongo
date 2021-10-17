@@ -59,3 +59,21 @@ in the sample_training.companies collection?
 db.companies.find({"founded_year": {"$ne":null}},{"name":1,"founded_year":1}).sort({"founded_year":1}).limit(5);
 db.companies.find({"founded_year": {"$ne":null}},{"name":1,"founded_year":1}).limit(5).sort({"founded_year":1});
 都可以，sort在limit前先执行，无论MQL顺序
+
+
+5. Gving index { name: 1, emails: 1 }
+When the following document is inserted, how many index entries will be created?
+{
+  "name": "Beatrice McBride",
+  "age": 26,
+  "emails": [
+      "puovvid@wamaw.kp",
+      "todujufo@zoehed.mh",
+      "fakmir@cebfirvot.pm"
+  ]
+}
+
+answer: 3
+"Beatrice McBride", "puovvid@wamaw.kp"
+"Beatrice McBride", "todujufo@zoehed.mh"
+"Beatrice McBride", "fakmir@cebfirvot.pm"

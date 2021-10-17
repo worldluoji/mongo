@@ -1,0 +1,387 @@
+0. 数据准备：
+mongoimport --drop -c people --uri mongodb+srv://m001-student:199114@luoji-mongo-cluster.ejuuu.mongodb.net/m201 people.json
+mongoimport --drop -c restaurants --uri mongodb+srv://m001-student:199114@luoji-mongo-cluster.ejuuu.mongodb.net/m201 restaurants.json
+
+1. index
+Indexes are used to increase the speed of our queries.
+The _id field is automatically indexed on all collections.
+Indexes reduce the number of documents MongoDB needs to examine to satisfy a query.
+Indexes can decrease write, update, and delete performance.
+
+example: db.trips.createIndex({ "birth year": 1 })
+可以给subdoc创建索引，也可以创建联合索引。
+
+2. explain
+// switch to the m201 database
+use m201
+
+// create an explainable object with no parameters
+exp = db.people.explain()
+queryPlanner 默认的模式，仅进行查询计划分析， 不会去真正执行查询，无法输出执行过程统计；
+executionStats 执行模式，在查询计划分析后，将执行winningPlan并统计过程信息；
+allPlansExecution 全计划执行模式，将执行所有计划(包括rejectPlans)，并返回过程统计信息；
+executionStats.allPlansExecution 包含了所有计划(除winningPlan之外)的执行过程统计信息
+
+// create an explainable object with the 'executionStats' parameter
+expRun = db.people.explain("executionStats")
+
+// and one final explainable object with the 'allPlansExecution' parameter
+expRunVerbose = db.people.explain("allPlansExecution")
+
+// execute and explain the query, collecting execution statistics
+expRun.find({"last_name":"Johnson", "address.state":"New York"})
+
+// create an index on last_name
+db.people.createIndex({last_name:1})
+
+// rerun the query (uses the index)
+expRun.find({"last_name":"Johnson", "address.state":"New York"})
+
+// create a compound index
+db.people.createIndex({"address.state": 1, last_name: 1})
+
+// rerun the query (uses the new index)
+expRun.find({"last_name":"Johnson", "address.state":"New York"})
+
+// run a sort query
+var res = db.people.find({"last_name":"Johnson", "address.state":"New York"}).sort({"birthday":1}).explain("executionStats")
+
+// checkout the execution stages (doing an in-memory sort)
+res.executionStats.executionStages
+
+3. example
+If you observe the following lines in the output of explain('executionStats'), what can you deduce?
+"executionStats" : {
+  "executionSuccess" : true,
+  "nReturned" : 23217,
+  "executionTimeMillis" : 91,
+  "totalKeysExamined" : 23217,
+  "totalDocsExamined" : 23217,
+  "executionStages" : {
+    "stage" : "SORT",
+    "nReturned" : 23217,
+    "executionTimeMillisEstimate" : 26,
+    "works" : 46437,
+    "advanced" : 23217,
+    "needTime" : 23219,
+    "needYield" : 0,
+    "saveState" : 363,
+    "restoreState" : 363,
+    "isEOF" : 1,
+    "sortPattern" : {
+      "stars" : 1
+    },
+    "memUsage" : 32522511,
+    "memLimit" : 33554432,
+
+The index selected for the query was not useful for the sort part of the query
+
+Because we have "totalKeysExamined" : 23217, we know an index was used.
+
+The "stage" : "SORT" tells us the index was not use for the sort and the system needed to 
+create an additional stage to perform it.
+
+An in-memory sort was performed
+
+The "stage" : "SORT" tells us the index was not use for the sort and a sort had to done, 
+so it had to be done in memory.
+
+The system came very close to throwing an exception instead of returning results
+
+Each stage passes its results (i.e. documents or index keys) to the parent node. 
+The leaf nodes access the collection or the indices. 
+The internal nodes manipulate the documents or the index keys that result from the child nodes. 
+The root node is the final stage from which MongoDB derives the result set.
+
+Stages are descriptive of the operation; e.g.
+
+COLLSCAN for a collection scan
+IXSCAN for scanning index keys
+FETCH for retrieving documents
+SHARD_MERGE for merging results from shards
+SHARDING_FILTER for filtering out orphan documents from shards
+
+"memUsage" : 32522511, "memLimit" : 33554432 tells us that 32,522,511 bytes out of a maximum available 
+of 33,554,432 were used to perform the sort in memory. If the sort operation would have just a few 
+more documents, it may have gone over the limit. In this case, the sort stage is aborted and 
+an exception is thrown to the client application. This means that you need to avoid operations 
+that perform in-memory sort. They may seem to work in your test environment with smaller dataset, 
+however, they will fail with a large production dataset.
+
+4. shard(分片)
+// switch to the m201 database
+use m201
+
+// enable sharding on the m201 database
+sh.enableSharding("m201")
+
+// shard the people collection on the _id index
+sh.shardCollection("m201.people", {_id: 1})
+
+// after the import, check the shard distribution (data should be on both shards)
+db.people.getShardDistribution()
+
+// checkout the explain output for a sharded collection
+db.people.find({"last_name":"Johnson", "address.state":"New York"}).explain("executionStats")
+
+5. example2
+With the output of an explain command, what can you deduce?
+
+1) The index used by the chosen plan
+
+Yes, additional information will be the direction the index is used, the bounds of the values 
+looked at and the number of keys examined.
+
+2) If a sort was performed by walking the index or done in memory
+
+Yes.
+
+3) All the available indexes for this collection
+
+No, you will be able to see the ones considered by the other plans that were rejected with the 
+"allExecutionPlans" option, but this is possibly only a subset of all indexes.
+
+4) All the different stages the query needs to go through with details about the time it takes, 
+the number of documents processed and returned to the next stage in the pipeline
+
+Yes.
+
+5) The estimation of the cardinalities of the distribution of the values
+
+No, while some RDBMS use this kind of statistics to select indexes, MongoDB executes all select plans for a short duration of time and picks the best based on execution results.
+
+
+6. methods for sorting
+1) In memory
+2) Using index
+
+// switch to the m201 database
+use m201
+
+db.people.createIndex({ ssn: 1 })
+
+// find all documents and sort them by ssn
+db.people.find({}, { _id : 0, last_name: 1, first_name: 1, ssn: 1 }).sort({ ssn: 1 })
+
+// create an explainable object for the people collection
+var exp = db.people.explain('executionStats')
+
+// and rerun the query (uses the index for sorting)
+exp.find({}, { _id : 0, last_name: 1, first_name: 1, ssn: 1 }).sort({ ssn: 1 })
+
+// this time, sort by first_name (didn't use the index for sorting)
+exp.find({}, { _id : 0, last_name: 1, first_name: 1, ssn: 1 }).sort({ first_name: 1 })
+
+// and rerun the first query, but sort descending (walks the index backward)
+exp.find({}, { _id : 0, last_name: 1, first_name: 1, ssn: 1 }).sort({ ssn: -1 })
+
+// filtering and sorting in the same query (both using the index, backward)
+exp.find( { ssn : /^555/ }, { _id : 0, last_name: 1, first_name: 1, ssn: 1 } ).sort( { ssn : -1 } )
+
+// drop all indexes
+db.people.dropIndexes()
+
+// create a new descending (instead of ascending) index on ssn
+db.people.createIndex({ ssn: -1 })
+
+// rerun the same query, now walking the index forward
+exp.find( { ssn : /^555/ }, { _id : 0, last_name: 1, first_name: 1, ssn: 1 } ).sort( { ssn : -1 } )
+
+7. coupon index
+1) index prefix
+db.xxx.createIndex({ "item": 1, "location": 1, "stock": 1 })
+
+The index has the following index prefixes:
+
+{ item: 1 }
+{ item: 1, location: 1 }
+For a compound index, MongoDB can use the index to support queries on the index prefixes. 
+As such, MongoDB can use the index for queries on the following fields:
+
+the item field,
+the item field and the location field,
+the item field and the location field and the stock field.
+
+MongoDB和MySQL一样，索引需要遵循左前缀原则。
+
+
+2) coupon index with sorting:
+// confirm you still have an index on job, employer, last_name, & first_name
+db.people.dropIndexes
+db.people.createIndex({ "job": 1, "employer": 1, "last_name": 1, "first_name": 1})
+db.people.getIndexes()
+
+// create an explainable object for the people collection
+var exp = db.people.explain("executionStats")
+
+// sort all documents using the verbatim index key pattern
+exp.find({}).sort({ job: 1, employer: 1, last_name : 1, first_name : 1 })
+
+// sort all documents using the first two fields of the index (uses the index), 满足左前缀原则
+exp.find({}).sort({ job: 1, employer: 1 })
+
+// sort all documents, swapping employer and job (doesn't use the index)
+exp.find({}).sort({ employer: 1, job: 1 })
+
+// will still use the index (for sorting)
+exp.find({ email:"jenniferfreeman@hotmail.com" }).sort({ job: 1 })
+
+// use the index for filtering and sorting
+exp.find({ job: 'Graphic designer', employer: 'Wilson Ltd' }).sort({ last_name: 1 })
+
+// doesn't follow an index prefix, and can't use the index for sorting, only filtering
+exp.find({ job: 'Graphic designer' }).sort({ last_name: 1 })
+
+// create a new compound index
+db.coll.createIndex({ a: 1, b: -1, c: 1 })
+
+// walk the index forward
+db.coll.find().sort({ a: 1, b: -1, c: 1 })
+
+// walk the index backward, by inverting the sort predicate
+db.coll.find().sort({ a: -1, b: 1, c: -1 })
+
+// all of these queries use the index for sorting
+db.coll.find().sort({ a: 1 })
+db.coll.find().sort({ a: 1, b: -1 })
+db.coll.find().sort({ a: -1 })
+db.coll.find().sort({ a: -1, b: 1 })
+
+// uses the index for sorting
+exp.find().sort({job: -1, employer: -1})
+
+// sorting is done in-memory
+exp.find().sort({job: -1, employer: 1})
+
+8. multikey index
+// switch to the m201 database
+use m201
+
+// insert a document into the products collection
+db.products.insert({
+  productName: "MongoDB Short Sleeve T-Shirt",
+  categories: ["T-Shirts", "Clothing", "Apparel"],
+  stock: { size: "L", color: "green", quantity: 100 }
+});
+
+// create an index on stock.quantity
+db.products.createIndex({ "stock.quantity": 1})
+
+// create an explainable object on the products collection
+var exp = db.products.explain()
+
+// look at the explain output for the query (uses an index, isMultiKey is false)
+exp.find({ "stock.quantity": 100 })
+
+// insert a document where stock is now an array
+db.products.insert({
+  productName: "MongoDB Long Sleeve T-Shirt",
+  categories: ["T-Shirts", "Clothing", "Apparel"],
+  stock: [
+    { size: "S", color: "red", quantity: 25 },
+    { size: "S", color: "blue", quantity: 10 },
+    { size: "M", color: "blue", quantity: 50 }
+  ]
+});
+
+// rerun our same query (still uses an index, but isMultiKey is now true)
+exp.find({ "stock.quantity": 100 })
+
+// creating an index on two array fields will fail
+db.products.createIndex({ categories: 1, "stock.quantity": 1 })
+
+// but compound indexes with only 1 array field are good
+db.products.createIndex({ productName: 1, "stock.quantity": 1 })
+
+// productName can be an array if stock isn't
+db.products.insert({
+  productName: [
+    "MongoDB Short Sleeve T-Shirt",
+    "MongoDB Short Sleeve Shirt"
+  ],
+  categories: ["T-Shirts", "Clothing", "Apparel"],
+  stock: { size: "L", color: "green", quantity: 100 }
+});
+
+// but this will fail, because both productName and stock are arrays
+db.products.insert({
+  productName: [
+    "MongoDB Short Sleeve T-Shirt",
+    "MongoDB Short Sleeve Shirt"
+  ],
+  categories: ["T-Shirts", "Clothing", "Apparel"],
+  stock: [
+    { size: "S", color: "red", quantity: 25 },
+    { size: "S", color: "blue", quantity: 10 },
+    { size: "M", color: "blue", quantity: 50 }
+  ]
+});
+
+9. partial index
+// switch to the m201 database
+use m201
+
+// insert a restaurant document
+db.restaurants.insert({
+   "name" : "Han Dynasty",
+   "cuisine" : "Sichuan",
+   "stars" : 4.4,
+   "address" : {
+      "street" : "90 3rd Ave",
+      "city" : "New York",
+      "state" : "NY",
+      "zipcode" : "10003"
+   }
+});
+
+// and run a find query on city and cuisine
+db.restaurants.find({'address.city': 'New York', 'cuisine': 'Sichuan'})
+
+// create an explainable object
+var exp = db.restaurants.explain()
+
+// and rerun the query
+exp.find({'address.city': 'New York', cuisine: 'Sichuan'})
+
+// create a partial index
+db.restaurants.createIndex(
+  { "address.city": 1, cuisine: 1 },
+  { partialFilterExpression: { 'stars': { $gte: 3.5 } } }
+)
+这样，只有starts >= 3.5的document才会建立索引。
+
+// rerun the query (doesn't use the partial index)
+db.restaurants.find({'address.city': 'New York', 'cuisine': 'Sichuan'})
+
+// adding the stars predicate allows us to use the partial index
+exp.find({'address.city': 'New York', cuisine: 'Sichuan', stars: { $gt: 4.0 }})
+
+All of the following are true:
+Partial indexes represent a superset of the functionality of sparse indexes.
+Partial indexes can be used to reduce the number of keys in an index.
+Partial indexes support compound indexes.
+
+The following is not true:
+Partial indexes don't support a uniqueness constraint.
+No, you can still specify a uniqueness constraint with a partial index. 
+However, uniqueness will be limited to the keys covered by the partial filter expression.
+
+10. Sparse indexes:
+
+These can be particularly useful for fields that are optional but which should also be unique.
+
+{ "_id" : "john@example.com", "nickname" : "Johnnie" }
+{ "_id" : "jane@example.com" }
+{ "_id" : "julia@example.com", "nickname" : "Jules"}
+{ "_id" : "jack@example.com" }
+Since two entries have no "nickname" specified and indexing will treat unspecified fields as null, 
+the index creation would fail with 2 documents having 'null', so:
+
+db.scores.createIndex( { nickname: 1 } , { unique: true, sparse: true } )
+will let you still have 'null' nicknames.
+
+Sparse indexes are more compact since they skip/ignore documents that don't specify that field. 
+So if you have a collection where only less than 10% of documents specify this field, 
+you can create much smaller indexes - making better use of limited memory if you want to do queries like:
+
+db.scores.find({'nickname': 'Johnnie'})
