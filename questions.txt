@@ -77,3 +77,43 @@ answer: 3
 "Beatrice McBride", "puovvid@wamaw.kp"
 "Beatrice McBride", "todujufo@zoehed.mh"
 "Beatrice McBride", "fakmir@cebfirvot.pm"
+
+6. Using the wildcardProjection flag with Wildcard Indexes, we can:
+
+Correct Answers:
+
+Using the wildcardProjection flag with Wildcard Indexes, we can:
+
+include a set of fields in the Wildcard Index.
+
+We can include a set of fields in our Wildcard Index using the syntax { wildcardProjection: { <field.path>: 1 } }.
+exclude a set of fields from the Wildcard Index.
+
+We can exclude a set of fields from our Wildcard Index using the syntax { wildcardProjection: { <field.path>: 0 } }.
+Incorrect Answer:
+
+Using the wildcardProjection flag with Wildcard Indexes, we can specify a set of fields 
+in the Wildcard Index to project with $project. This is not the purpose of the wildcardProjection flag.
+
+
+7. Which of the following are good reasons to use a Wildcard Index?
+1) Correct Options
+
+The query pattern on documents of a collection is unpredictable.
+
+The wildcard index creates an index on every field in a document or subdocument, 
+which facilitates an unpredictable query pattern.
+
+An application consistently queries against document fields that use the Attribute Pattern.
+
+The wildcard index can create an index on every field in a subdocument, 
+which eliminates the need for an array of subdocuments when implementing the Attribute Pattern.
+
+2) Incorrect Option
+
+A collection has documents with many different fields.
+
+This is not enough to justify using a Wildcard Index. 
+If a collection has many different fields, and you wanted to support queries on all those fields, 
+then the Wildcard Index is a viable option. 
+However, simply having many different fields is not a good reason to use the Wildcard Index.

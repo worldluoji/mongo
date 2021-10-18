@@ -385,3 +385,131 @@ So if you have a collection where only less than 10% of documents specify this f
 you can create much smaller indexes - making better use of limited memory if you want to do queries like:
 
 db.scores.find({'nickname': 'Johnnie'})
+
+10. text index
+text index 会对字符串进行分词处理，就像Elasticsearch一样
+
+// switch to the m201 database
+use m201
+
+// insert 2 example documents
+db.textExample.insertOne({ "statement": "MongoDB is the best" })
+db.textExample.insertOne({ "statement": "MongoDB is the worst." })
+
+// create a text index on "statement"
+db.textExample.createIndex({ statement: "text" })
+
+// Search for the phrase "MongoDB best"
+db.textExample.find({ $text: { $search: "MongoDB best" } })
+
+// Display each document with it's "textScore"
+db.textExample.find({ $text: { $search : "MongoDB best" } }, { score: { $meta: "textScore" } })
+
+// Sort the documents by their textScore so that the most relevant documents
+// return first
+db.textExample.find({ $text: { $search : "MongoDB best" } }, { score: { $meta: "textScore" } }).sort({ score: { $meta: "textScore" } })
+
+
+11. collation
+Collation allows users to specify language-specific rules for string comparison, 
+such as rules for lettercase and accent marks.
+
+You can specify collation for a collection or a view, an index, or specific operations
+that support collation.
+
+简而言之，Collation特性允许MongoDB的用户根据不同的语言定制排序规则.
+
+// switch to the m201 database
+use m201
+
+// create a collection-level collation for Portuguese
+db.createCollection( "foreign_text", {collation: {locale: "pt"}})
+
+// insert an example document
+db.foreign_text.insert({ "name": "Máximo", "text": "Bom dia minha gente!"})
+
+// explain the following query (uses the Portuguese collation)
+db.foreign_text.find({ _id: {$exists:1 } } ).explain()
+
+// specify an Italian collation for a find query
+db.foreign_text.find({ _id: {$exists:1 } }).collation({locale: 'it'})
+
+// specify a Spanish collation for an aggregation query
+db.foreign_text.aggregate([ {$match: { _id: {$exists:1 }  }}], {collation: {locale: 'es'}})
+
+// create an index with a collation that differs from the collection collation
+db.foreign_text.createIndex( {name: 1},  {collation: {locale: 'it'}} )
+
+// uses the collection collation (Portuguese)， can not use index
+db.foreign_text.find( {name: 'Máximo'}).explain()
+
+// uses the index collation (Italian)
+db.foreign_text.find( {name: 'Máximo'}).collation({locale: 'it'}).explain()
+
+
+// create a case-insensitive index via collations
+db.createCollection( "no_sensitivity", {collation: {locale: 'en', strength: 1}})
+"strength: 1" means that Collation performs comparisons of the base characters only, 
+ignoring other differences such as diacritics and case.
+
+这里还有要给caseLevel参数：
+caseLevel boolean
+Optional. Flag that determines whether to include case comparison at strength level 1 or 2.
+If true, include case comparison; i.e.
+When used with strength:1, collation compares base characters and case.
+When used with strength:2, collation compares base characters, diacritics (and possible other secondary differences) and case.
+If false, do not include case comparison at level 1 or 2. The default is false.
+
+// insert some documents
+db.no_sensitivity.insert({name: 'aaaaa'})
+db.no_sensitivity.insert({name: 'aAAaa'})
+db.no_sensitivity.insert({name: 'AaAaa'})
+
+// sort them by name ascending
+db.no_sensitivity.find().sort({name:1})
+
+// even if we change the sort-order, the documents will be returned in the same
+// order because of the case-insensitive collation
+db.no_sensitivity.find().sort({name:-1})
+
+https://docs.mongodb.com/manual/reference/collation/?jmp=university
+
+12. Wildcard index
+MongoDB 4.2 introduces wildcard indexes for supporting queries against unknown or arbitrary fields.
+
+Wildcard indexes are a new index type in MongoDB, which, as their name suggests,
+allow you to dynamically create indexes on all fields or a selected subset of fields 
+for each document in a collection.
+
+Here at MongoDB, we always say that you should only index fields that your queries frequently access.
+And that still applies.
+Wildcard indexes aren't a replacement for traditional indexes.
+So remember, indexes are great for query performance, but come at a cost.
+
+why would we index everything?
+For instance, sensor data for IoT use cases or weather stations.
+In such cases, each query may include a combination of an arbitrarily large number of different fields.
+This can make it very difficult to plan an effective indexing strategy.
+For these workloads, we needed a way to be able to index on multiple fields without the overhead 
+of maintaining multiple indexes.
+
+b.userData.createIndex( { "userMetadata.$**" : 1 } )
+
+The index can support the following queries:
+db.userData.find({ "userMetadata.likes" : "dogs" })
+db.userData.find({ "userMetadata.dislikes" : "pickles" })
+db.userData.find({ "userMetadata.age" : { $gt : 30 } })
+db.userData.find({ "userMetadata" : "inactive" })
+
+
+db.collection.createIndex(
+  { "$**" : 1 },
+  { "wildcardProjection" :
+    { "fieldA" : 1, "fieldB.fieldC" : 1 }
+  }
+)
+
+With this wildcard index, MongoDB indexes all values for the specified fields for each document
+in the collection. If a given field is a nested document or array, the wildcard index recurses
+into the document/array and stores the value for all fields in the document/array.
+“"fieldA" : 0”则表示exclude.
