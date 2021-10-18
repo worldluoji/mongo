@@ -1,6 +1,6 @@
 0. 数据准备：
-mongoimport --drop -c people --uri mongodb+srv://m001-student:199114@luoji-mongo-cluster.ejuuu.mongodb.net/m201 people.json
-mongoimport --drop -c restaurants --uri mongodb+srv://m001-student:199114@luoji-mongo-cluster.ejuuu.mongodb.net/m201 restaurants.json
+mongoimport --drop -c people --uri mongodb+srv://m001-student:xxx@luoji-mongo-cluster.ejuuu.mongodb.net/m201 people.json
+mongoimport --drop -c restaurants --uri mongodb+srv://m001-student:xxx@luoji-mongo-cluster.ejuuu.mongodb.net/m201 restaurants.json
 
 1. index
 Indexes are used to increase the speed of our queries.
