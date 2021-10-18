@@ -117,3 +117,66 @@ This is not enough to justify using a Wildcard Index.
 If a collection has many different fields, and you wanted to support queries on all those fields, 
 then the Wildcard Index is a viable option. 
 However, simply having many different fields is not a good reason to use the Wildcard Index.
+
+8. In this lab you're going to determine which queries are able to successfully 
+use a given index for both filtering and sorting.
+
+Given the following index:
+{ "first_name": 1, "address.state": -1, "address.city": -1, "ssn": 1}
+
+db.people.find({ "first_name": { $gt: "J" } }).sort({ "address.city": -1 })
+
+No, this query doesn't use equality on the index prefix.
+When using an index for filtering and sorting the query must include equality conditions 
+on all the prefix keys that precede the sort keys. Moreover, on the sort predicate it skipped 
+the next key in the prefix "address.state".
+
+db.people.find({ "first_name": "Jessica" }).sort({ "address.state": 1, "address.city": 1 })
+
+Yes, this query matches with equality on the query predicate with an index prefix, 
+and continues the prefix in the sort predicate by walking the index backward.
+
+db.people.find({ "first_name": "Jessica", "address.state": { $lt: "S"} }).sort({ "address.state": 1 })
+
+Yes, while this query fails to use equality on the "address.state" field of the index prefix, 
+it uses the same field for sorting.
+
+db.people.find({ "address.city": "West Cindy" }).sort({ "address.city": -1 })
+
+No, this query does not use an index prefix.
+
+db.people.find({ "address.state": "South Dakota", "first_name": "Jessica" }).sort({ "address.city": -1 })
+
+Yes, this query is able to use the index prefix. The order of the fields in the query predicate
+does not matter. Since both address.state and first_name are part of the index prefix, 
+this query can utilize the index for the equality condition.
+
+9. In this lab you're going to examine several example queries and determine 
+which compound index will best service them.
+
+> db.people.find({
+    "address.state": "Nebraska",
+    "last_name": /^G/,
+    "job": "Police officer"
+  })
+
+> db.people.find({
+    "job": /^P/,
+    "first_name": /^C/,
+    "address.state": "Indiana"
+  }).sort({ "last_name": 1 })
+
+> db.people.find({
+    "address.state": "Connecticut",
+    "birthday": {
+      "$gte": ISODate("2010-01-01T00:00:00.000Z"),
+      "$lt": ISODate("2011-01-01T00:00:00.000Z")
+    }
+  })
+If you had to build one index on the people collection, which of the 
+following indexes would best service all 3 queries?
+
+{ "address.state": 1, "last_name": 1, "job": 1 }
+
+Yes, this is the best index. This index matches the first query, can be used for sorting on the second, 
+and has an prefix for the 3rd query.
