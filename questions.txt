@@ -197,3 +197,15 @@ No, only a subset of the indexes are considered as candidates for planning.
 4) If an index can't be used, then there is no query plan for that query.
 
 No, if there aren't any viable indexes for a given query, then a COLLSCAN stage will be the main stage of the query plan.
+
+11. true or false?
+For the fastest processing, we should ensure that our indexes fit entirely in RAM
+true
+
+Index information does not need to completely allocated in RAM since MongoDB only 
+uses the right-end-side to the index b-tree, regardless of the queries that use index.
+false
+
+Indexes are not required to be entirely placed in RAM, 
+however performance will be affected by constant disk access to retrieve index information.
+true

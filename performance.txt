@@ -587,3 +587,40 @@ I don't want to get too into the weeds here, but best can be which plan returned
 Or it might be, which returned a certain number of documents in store order fastest.
 
 If we were to run explain and look under the winning plan field, this is the plan it would be talking about.
+
+15. Forcing Indexes with Hint
+db.users.find({"username":"user1000", "age":30}).hint({"username":1})
+hint()强制使用"username":1为索引
+需要说明的是，mongodb的优化器已经很牛逼了，非必要无需使用hint()
+
+16. 资源占用情况查看
+1）查看collection的情况：
+db.people.stats(); 
+Atlas atlas-zdff09-shard-0 [primary] m201> db.people.stats();
+db.stats()
+{
+  "db" : "people",
+  "collections" : 5, 表示当前数据库有多少个collections.可以通过运行show collections查看
+  "objects" : 22,    表示当前数据库所有collection总共有多少行数据。显示的数据是一个估计值
+  "avgObjSize" : 100.36363636363636,表示每行数据是大小，也是估计值，单位是bytes
+  "dataSize" : 2208, 示当前数据库所有数据的总大小，不是指占有磁盘大小。单位是bytes
+  "storageSize" : 36864,  表示当前数据库占有磁盘大小，单位是bytes,因为mongodb有预分配空间机制，为了防止当有大量数据插入时对磁盘的压力,因此会事先多分配磁盘空间。
+  "numExtents" : 5,
+  "indexes" : 6,表示system.indexes表 索引个数
+  "indexSize" : 49056,  表示索引占有磁盘大小。单位是bytes
+  "fileSize" : 67108864, 表示当前数据库预分配的文件大小，例如test.0,test.1，不包括test.ns。
+  "nsSizeMB" : 16,
+  "extentFreeList" : {
+          "num" : 0,
+          "totalSize" : 0
+  },
+  "dataFileVersion" : {
+          "major" : 4,
+          "minor" : 22
+  },
+  "ok" : 1
+}
+
+
+db.people.stats({indexDetails:true});
+还能看到更详细的信息，比如cache的情况等。
