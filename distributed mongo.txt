@@ -1,0 +1,109 @@
+1. What's a distributed system in MongoDB?
+A distributed system in MongoDB includes both replica sets-- or Replica Clusters-- 
+for a high availability solution, and Shard Clusters.
+Shard Clusters are our mechanism to allow horizontal scalability of our data.
+
+2. what should be considered in a distributed system in MongoDB?
+1) When more than one machine talks to each other, latency will be involved.
+
+2) read implications and write implications
+Data is generally spread across different notes. 
+It's either copies of the data or different sets of data in different charts.
+There will be read implications, so things will be performing in a different pace, 
+and obviously, also, write implications.
+
+3. Having a replica set in place is super, super important.
+A replica set in MongoDB is a group of mongod processes that maintain the same data set. 
+Replica sets provide redundancy and high availability, and are the basis for all production deployments. 
+This section introduces replication in MongoDB as well as the components and architecture of replica sets. 
+The section also provides tutorials for common tasks related to replica sets.
+
+Apart from the main purpose of providing high availability, in case of failure of a node, 
+we will still have availability of a service provided by the remaining nodes, 
+but replica sets can also provide a few other functions, 
+like offloading ventral consistency data to secondaries, 
+privileging your primary for operational workload, 
+or having specific workload with target indexes configuration on secondary nodes.
+
+Read Operations to Replica Sets:
+By default, clients reads from a replica set's primary; 
+however, clients can specify a read preference to direct read operations to other members. 
+For example, clients can configure read preferences to read from secondaries or from nearest member to:
+1) reduce latency in multi-data-center deployments,
+2) improve read throughput by distributing high read-volumes (relative to write volume),
+3) perform backup operations, and/or
+4) allow reads until a new primary is elected.
+
+Write operations to Replica Sets:
+In replica sets, all write operations go to the set's primary. 
+The primary applies the write operation and records the operations on the primary's operation log or oplog.
+The oplog is a reproducible sequence of operations to the data set. 
+secondary members of the set continuously replicate the oplog and apply the operations to themselves 
+in an asynchronous process.
+
+4. The other side of distributed systems in MongoDB, with a purpose of horizontal scalability, is our Shard Cluster.
+In our Shard Cluster, 
+A MongoDB sharded cluster consists of the following components:
+1) shard: Each shard contains a subset of the sharded data. Each shard can be deployed as a replica set.
+2) mongos: The mongos acts as a query router, providing an interface between client applications 
+and the sharded cluster. Starting in MongoDB 4.4, mongos can support hedged reads to minimize latencies.
+3) config servers: Config servers store metadata and configuration settings for the cluster.
+
+MongoDB shards data at the collection level, distributing the collection data across the shards in the cluster.
+
+Shard Nodes are in themselves replica sets.(分片本身就是副本集)
+
+Read Operations to Sharded Clusters
+Sharded clusters allow you to partition a data set among a cluster of mongod instances in a way 
+that is nearly transparent to the application. For an overview of sharded clusters, 
+see the Sharding section of this manual.
+For a sharded cluster, applications issue operations to one of the mongos instances associated
+with the cluster.
+
+Read operations on sharded clusters are most efficient when directed to a specific shard.
+Queries to sharded collections should include the collection's shard key. 
+When a query includes a shard key, the mongos can use cluster metadata from the config database
+to route the queries to shards.
+
+If a query does not include the shard key, the mongos must direct the query to all shards in the cluster.
+These scatter gather queries can be inefficient. 
+On larger clusters, scatter gather queries are unfeasible for routine operations.
+
+to make efficient usage of our cluster data distribution we should use our shard key in our queries.
+
+Write Operations on Sharded Clusters
+For sharded collections in a sharded cluster, the mongos directs write operations from applications 
+to the shards that are responsible for the specific portion of the data set. 
+The mongos uses the cluster metadata from the config database to route the write operation to the appropriate shards.
+
+MongoDB partitions data in a sharded collection into ranges based on the values of the shard key. 
+Then, MongoDB distributes these chunks to shards. 
+The shard key determines the distribution of chunks to shards. 
+This can affect the performance of write operations in the cluster.
+
+参考资料：https://docs.mongodb.com/manual/core/distributed-queries/?jmp=university
+
+补充：
+分布式系统的垂直扩展和水平扩展
+高并发（High Concurrency）是互联网分布式系统架构设计中必须考虑的因素之一，它通常是指，通过设计保证系统能够同时并行处理很多请求。提高系统并发能力的方式，方法论上主要有两种：垂直扩展（Scale Up）与水平扩展（Scale Out）。
+
+1 垂直扩展：提升单机处理能力。垂直扩展的方式有：
+增强单机硬件性能。如：升级CPU算力和核数，升级更好的网卡如万兆，升级更好的硬盘如SSD，扩充硬盘如2T，扩充内存如128G；
+提升单机架构性能。如：使用Cache来减少IO次数，使用异步来增加单服务吞吐量，使用无锁数据结构来减少响应时间；
+优点：单机优化易于配置且维护和管理开销最小，性能改善简单快捷；
+缺点：增强单机硬件的购置成本高，并且有可能效益不高；单机性能总是有极限的，所以互联网分布式架构设计高并发的终极解决方案还是水平扩展。
+
+2 水平扩展：通过增加服务器数量，从而线性扩充系统性能。水平扩展对系统架构设计是有要求的。
+反向代理层的水平扩展：是通过“DNS轮询”实现的。dns-server对于一个域名配置了多个解析 ip，
+每次DNS解析请求来访问 dns-server，会轮询返回这些 ip。
+当nginx成为瓶颈的时候，只要增加服务器数量，新增 nginx 服务的部署，增加一个外网ip，就能扩展反向代理层的性能，
+做到理论上的无限高并发。
+
+站点层的水平扩展：是通过 nginx 实现的。通过修改nginx.conf，可以设置多个web后端。
+当web后端成为瓶颈的时候，只要增加服务器数量，新增web服务的部署，在nginx中配置上新的web后端，就能扩展站点层的性能，
+做到理论上的无限高并发。
+
+服务层的水平扩展：是通过“服务连接池"实现的。
+站点层通过RPC-client调用下游的服务层RPC-server时，RPC-client中的连接池会建立与下游服务多个连接，
+当服务成为瓶颈的时候，只要增加服务器数量，新增服务部署，在RPC-client处建立新的下游服务连接，就能扩展服务层性能，
+做到理论上的无限高并发。如果需要优雅的进行服务层自动扩容，这里可能需要配置中心里服务自动发现功能的支持。
