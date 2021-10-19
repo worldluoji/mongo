@@ -1,0 +1,94 @@
+0. preparation
+use m201
+
+// create an explainable object
+var exp = db.restaurants.explain("executionStats")
+
+1. (equality,sort,range) rule
+// run an explained query (COLLSCAN & in-memory sort)
+exp.find({ "address.zipcode": { $gt: '50000' }, cuisine: 'Sushi' }).sort({ stars: -1 })
+
+// create a naive index
+db.restaurants.createIndex({"address.zipcode": 1,"cuisine": 1,"stars": 1})
+
+// rerun the query (uses the index, but isn't very selective and still does an 
+// in-memory sort, because we can only use an index for both filtering and sorting if the keys 
+in our query predicate are equality conditions.) 
+exp.find({ "address.zipcode": { $gt: '50000' }, cuisine: 'Sushi' }).sort({ stars: -1 })
+
+// see how many documents match 50000 for zipcode (10)
+db.restaurants.find({ "address.zipcode": '50000' }).count()
+
+// see how many documents match our range (about half)
+db.restaurants.find({ "address.zipcode": { $gt: '50000' } }).count()
+
+// see how many documents match an equality condition on cuisine (~2%)
+db.restaurants.find({ cuisine: 'Sushi' }).count()
+
+// reorder the index key pattern to be more selective
+db.restaurants.createIndex({ "cuisine": 1, "address.zipcode": 1, "stars": 1 })
+
+// and rerun the query (faster, still doing an in-memory sort)
+exp.find({ "address.zipcode": { $gt: '50000' }, cuisine: 'Sushi' }).sort({ stars: -1 })
+在explain里，winning plan的stage有sort，说明用了in-memroy sort.
+
+// swap stars and zipcode to prevent an in-memory sort
+db.restaurants.createIndex({ "cuisine": 1, "stars": 1, "address.zipcode": 1 })
+
+// awesome, no more in-memory sort! (uses the equality, sort, range rule)
+exp.find({ "address.zipcode": { $gt: '50000' }, cuisine: 'Sushi' }).sort({ stars: -1 })
+
+2. covered index
+// create a compound index on three fields
+db.restaurants.createIndex({name: 1, cuisine: 1, stars: 1})
+
+// checkout a projected query
+db.restaurants.find({name: { $gt: 'L' }, cuisine: 'Sushi', stars: { $gte: 4.0 } }, { _id: 0, name: 1, cuisine: 1, stars: 1 })
+
+// and look at it's explain output (it's covered, no docs examined)
+exp.find({name: { $gt: 'L' }, cuisine: 'Sushi', stars: { $gte: 4.0 } }, { _id: 0, name: 1, cuisine: 1, stars: 1 })
+winningPlan: {
+    stage: 'PROJECTION_COVERED',
+    transformBy: { _id: 0, name: 1, cuisine: 1, stars: 1 },
+    inputStage: {
+      stage: 'IXSCAN',
+      keyPattern: { name: 1, cuisine: 1, stars: 1 },
+      indexName: 'name_1_cuisine_1_stars_1',
+      ......
+
+
+// get the same output as the first query
+db.restaurants.find({name: { $gt: 'L' }, cuisine: 'Sushi', stars: { $gte: 4.0 } }, { _id: 0, address: 0 })
+
+// but when looking at the explain output we see that it's not a covered query
+exp.find({name: { $gt: 'L' }, cuisine: 'Sushi', stars: { $gte: 4.0 } }, { _id: 0, address: 0 })
+因为address不在索引上
+
+exp.find({name: { $gt: 'L' }, cuisine: 'Sushi', stars: { $gte: 4.0 } }, { _id: 0, stars: 1 })
+可以coverd
+但是
+exp.find({name: { $gt: 'L' }, cuisine: 'Sushi', stars: { $gte: 4.0 } }, {stars: 1 })
+不可以。因为_id和name,stars在不通的索引上。
+
+3. regular expression
+> db.products.createIndex({ productName: 1 })
+And the following query:
+> db.products.find({ productName: /^Craftsman/ })
+可以使用到索引，满足左前缀原则。
+> db.products.find({ productName: /Craftsman/ })
+则不能使用到索引，性能会很差。
+
+
+4. aggregate using index
+1) You can increase index usage by moving $match stages to the end of your pipeline
+No, you should move $match stages to the beginning of your pipelines!
+
+2) Passing allowDiskUsage to your aggregation queries will seriously increase their performance
+No, allowDiskUsage will decrease query performance, but it will be necessary to circumvent the 100MB per stage limit.
+
+3) When $limit and $sort are close together a very performant top-k sort can be performed
+Yes, this is true!
+
+4) Transforming data in a pipeline stage prevents us from using indexes in the stages that follow
+Yes, this is true. 
+That's why it's important to put all your index using operators at the front of your pipelines!
