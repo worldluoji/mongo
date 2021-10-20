@@ -209,3 +209,16 @@ false
 Indexes are not required to be entirely placed in RAM, 
 however performance will be affected by constant disk access to retrieve index information.
 true
+
+12. Which of the following conditions apply when creating indexes on secondaries?
+A secondary should never be allowed to become primary
+True! If we were to allow it to become primary our application will experience the different set of indexes, 
+once it becomes primary. That will potentially affect your application's expected performance.
+
+These indexes can only be set on secondary nodes
+False! The indexes can be set on the primary node, however we avoid doing so to prevent any 
+impact on the operational workload, since these only service an analytical workload.
+
+We can create specific indexes on secondaries, even if they are not running in standalone mode
+False! No we first need to safely shutdown the secondary, and then restart it in standalone mode 
+before we can create an index on it.
