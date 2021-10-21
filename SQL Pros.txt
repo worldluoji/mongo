@@ -130,3 +130,7 @@ This is the third phase of our methodology.
 It is similar to denormalizing a schema for a traditional relational model once performance bottlenecks are observed.
 Because MongoDB often deals with very large datasets and more demanding workload, it is part of the methodology. 
 In other words, you should not wait after the code is written to apply these transformations.
+
+6. embedding or reference?
+当父子文档读写大多数情况都是一起的时候，就用embedding;同理子文档使用频率很低，那么就可以用reference。
+另外，如果子文档数据量特别大，已经严重影响了查询性能，就不建议使用embedding.
