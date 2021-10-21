@@ -579,6 +579,8 @@ From there, it will identify which indexes are viable to satisfy the query.
 We call these candidate indexes.
 From these candidate indexes, the query optimizer can generate candidate plans.
 
+Query plans are removed from the plan cache on index creation, destruction, or server restart.
+
 Now MongoDB has what is called an empirical query planner, which means that there is going to be 
 a trial period, where each of the candidate plans is executed over a short period of time.
 And the planner will then see which plan performed best.

@@ -222,3 +222,85 @@ impact on the operational workload, since these only service an analytical workl
 We can create specific indexes on secondaries, even if they are not running in standalone mode
 False! No we first need to safely shutdown the secondary, and then restart it in standalone mode 
 before we can create an index on it.
+
+13. True or false
+An index doesn't become multikey until a document is inserted that has an array value.
+
+This is correct!
+
+Running performance tests from the mongo shell is an acceptable way to benchmark your database.
+
+No, you're performance tests should be as close to your production environment as possible. The mongo shell is designed for administrative tasks and ah-hoc queries, not performance benchmarks. You'd also be running in a single thread, which is unlikely how you'd be operating in production.
+
+You can use the --wiredTigerDirectoryForIndexes option to place your indexes on a different disk than your data.
+
+This is correct!
+
+Indexes can only be traversed forward.
+
+No, indexes can be traversed both forward and backward.
+
+The ideal ratio between nReturned and totalKeysExamined is 1.
+
+This is correct!
+
+14. Given the following indexes:
+
+{ categories: 1, price: 1 }
+{ in_stock: 1, price: 1, name: 1 }
+The following documents:
+
+{ price: 2.99, name: "Soap", in_stock: true, categories: ['Beauty', 'Personal Care'] }
+{ price: 7.99, name: "Knife", in_stock: false, categories: ['Outdoors'] }
+And the following queries:
+
+db.products.find({ in_stock: true, price: { $gt: 1, $lt: 5 } }).sort({ name: 1 })
+db.products.find({ in_stock: true })
+db.products.find({ categories: 'Beauty' }).sort({ price: 1 })
+Which of the following is/are true?
+
+Index #1 would provide a sort to query #3.
+
+Yes, that is correct.
+
+Index #2 properly uses the equality, sort, range rule for query #1.
+
+No, if we were to build an index for query #1 using the equality, sort, range rule, then the index would be: { in_stock: 1, name: 1, price: 1 }.
+
+There would be a total of 4 index keys created across all of these documents and indexes.
+
+No, there would be 5 total index keys:
+
+{ categories: 'Beauty', price: 2.99 }
+{ categories: 'Personal Care', price: 2.99 }
+{ categories: 'Outdoors', price: 7.99 }
+{ in_stock: true, price: 2.99, name: 'Soap' }
+{ in_stock: false, price: 7.99, name: 'Knife'}
+The additional index keys are due to the multikey index on categories.
+
+Index #2 can be used by both query #1 and #2.
+
+Yes, that is correct.
+
+15. Ture of false
+The only true statement was:
+
+Creating an ascending index on a monotonically increasing value creates index keys 
+on the right-hand side of the index tree.
+
+Let's take a look at why each of the other statements are false:
+
+You can index multiple array fields in a single document with a single compound index.
+Multikey indexes allow us to index on array fields, but they do not support indexes 
+on multiple array fields on single documents.
+
+Covered queries can sometimes still require some of your documents to be examined.
+A query is covered if and only if it can be satisfied using the keys of the index.
+
+Write concern has no impact on write latency.
+Different write concerns can certainly impact your write latency. 
+Write concerns that only need acknowledgment from a primary are generally 
+faster than ones that need acknowledgment from a majority of replica set members.
+
+A collection scan has a logarithmic search time.
+No, collection scans have a linear search time.
