@@ -1,0 +1,100 @@
+1. True or false?
+1) It allows us to model one-to-one and one-to-many relationships.
+
+This is correct.
+Use a sub-object to model a one-to-one relationship.
+Use an array to model a one-to-many or a many-to-many relationship.
+
+2) It is similar to maps in Java and dictionaries in Python.
+This is correct.
+
+3) It is identical to JSON.
+This is incorrect.
+In examples, documents are often represented in JSON, but under the hood, 
+MongoDB uses BSON which offers more data types and better performance.
+比如JSON中数子numberic类型，但是BSON可以表示float,int,double。
+
+2. Ture or false?
+1) Modify two documents within a MongoDB transaction.
+
+This is correct.
+
+Using a transaction in MongoDB will guarantee ACID of all the changes performed in the transaction.
+
+
+2) Modify a field and array in a single document within a MongoDB transaction.
+
+This is correct.
+
+Using a transaction in MongoDB will guarantee ACID of all the changes performed in the transaction.
+
+
+3) Modify a field and array in a single document without using a transaction.
+
+This is correct.
+
+ACID is guaranteed at the document level.
+
+If you change many fields in a document, regardless if they are scalar values, sub documents, 
+or arrays, all changes will go together in an atomic write.
+
+
+4) Modify two documents without using a MongoDB transaction.
+This is incorrect.
+Each document will have its atomic write. However, there is no guarantee that both writes will succeed 
+or fail together. Also, a reader may see one change and not the other one if the operation reads 
+the database right in between the two writes operations.
+
+https://en.wikipedia.org/wiki/ACID
+https://en.wikipedia.org/wiki/Snapshot_isolation
+https://www.mongodb.com/presentations/are-transactions-right-for-you-
+
+3. What are the main reasons distributed systems behave differently than single server systems?
+Networks are a common point of failure.
+This is correct.
+Networking connections between individual servers are very reliable these days, 
+but they do fail once in a while, and when designing an application that uses many servers. 
+You need to guard the application against potential failures.
+
+Network speed is usually fast, but not instantaneous.
+This is correct.
+When an application depends on a piece of data being written or read from many servers, 
+it will likely wait for the slowest link. When the latency of an operation is crucial, 
+it is a good idea to locate dependant servers (for example database and application servers) 
+close to each other.
+
+More servers equate to more downtime.
+This is incorrect.
+From a statistical point of view, the more components a system has, the more failures it will experience.
+However, in a replicated distributed system, downtime is not directly correlated to failures.
+Even if you have more servers, carefully designing the system allows for far less downtime than a single, 
+non-replicated, server would experience by ensuring every component is replicated and not a single point of failure.
+
+http://smalldatum.blogspot.com/2020/02/describing-replication.html
+https://en.wikipedia.org/wiki/CAP_theorem
+
+
+4. write concern and read concern
+Write concern describes the level of acknowledgment requested from MongoDB for write operations 
+to a standalone mongod or to replica sets or to sharded clusters. 
+In sharded clusters, mongos instances will pass the write concern on to the shards.
+The write concern tells the required durability requested for the write operation.
+All write operations in MongoDB must be directed to the Primary.
+https://docs.mongodb.com/manual/reference/write-concern/
+
+The readConcern option allows you to control the consistency and isolation properties of the data 
+read from replica sets and replica set shards.
+The read concern tells the required durability requested for the read operation.
+https://docs.mongodb.com/manual/reference/read-concern/
+
+
+Read preference describes how MongoDB clients route read operations to the members of a replica set.
+By default, an application directs its read operations to the primary member in a replica set 
+(i.e. read preference mode "primary"). 
+But, clients can specify a read preference to send read operations to secondaries.
+
+Read preference consists of the read preference mode and optionally, a tag set, 
+the maxStalenessSeconds option, and the hedged read option. 
+Hedged read option is available for MongoDB 4.4+ sharded clusters for reads 
+that use non-primary read preference.
+https://docs.mongodb.com/manual/core/read-preference/
