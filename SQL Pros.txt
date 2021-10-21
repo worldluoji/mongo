@@ -174,3 +174,30 @@ Documents in different collections have referential integrity.
 This is incorrect.
 Schema validation is done per document. 
 There is no syntax to link a document to another document that is related to the document under validation.
+
+9. MQL VS Aggretation
+A MQL SELECT statement needs to be interpreted from the inside-out to understand the logic of the query.
+MQL uses nested statements for queries.
+This contrasts with MongoDB Aggregation Pipelines which are interpreted from 
+the top-to-bottom as each stage impacts the following stage.
+MongoDB Aggregations use sequential stages for queries.
+
+
+10. SQL VS MongoDB Aggregation
+SQL         MongoDB Aggregation
+SELECT	    db.aggregate()
+WHERE	    $match
+GROUP	    $group
+COUNT	    $count
+LIMIT	    $limit
+ORDER BY	$sort
+JOIN	    $lookup
+UNION ALL	$unionWith
+
+11. SQL VS MQL
+SQL         MongoDB Aggregation Framework
+SELECT	    db.find()
+WHERE	    { Field: Value }
+COUNT	    count()
+LIMIT, TOP	limit()
+ORDER BY	sort()
