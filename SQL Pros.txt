@@ -80,6 +80,12 @@ to a standalone mongod or to replica sets or to sharded clusters.
 In sharded clusters, mongos instances will pass the write concern on to the shards.
 The write concern tells the required durability requested for the write operation.
 All write operations in MongoDB must be directed to the Primary.
+The operation requires a durability of "majority" is a qualitative aspect of a write operation.
+"majority" Requests acknowledgment that write operations have propagated to the calculated majority 
+of the data-bearing voting members.
+For example, consider a replica set with 3 voting members, Primary-Secondary-Secondary (P-S-S). 
+For this replica set, calculated majority is two, and the write must propagate to the primary 
+and one secondary to acknowledge the write concern to the client.
 https://docs.mongodb.com/manual/reference/write-concern/
 
 The readConcern option allows you to control the consistency and isolation properties of the data 
@@ -98,3 +104,29 @@ the maxStalenessSeconds option, and the hedged read option.
 Hedged read option is available for MongoDB 4.4+ sharded clusters for reads 
 that use non-primary read preference.
 https://docs.mongodb.com/manual/core/read-preference/
+
+5. some pricipals for mongodb
+1) The document model lets, and encourages, you to keep information that is used together inside one single document.
+2) Atomicity, consistency, isolation, and durability (ACID) can be implemented by leveraging the document model, 
+which is preferred, or by using MongoDB transactions.
+3) Making early decisions and compromises about very large datasets will help make the data more manageable. 
+For example, deleting or archiving documents after a given period of time may reduce the resources needed for the project.
+4) Using a distributed system, like MongoDB, means that data can be written and read on servers all over the world. 
+Carefully planning the location of the servers will improve performance and resilience of the applications.
+
+6. Which are the three phases of our data modeling methodology?
+1) Describe the Workload.
+This is the first phase of our methodology.
+This is the phase in which we describe the read and write operations in order to 
+understand which ones are the most important ones when constructing our model.
+
+2) Model the Relationships.
+This is the second phase of our methodology.
+It is similar to the phase of drawing an Entity-Relationship Diagram for a traditional relational database. 
+However, there is a decision between embedding and referencing to make for each relationship.
+
+3) Apply Patterns.
+This is the third phase of our methodology.
+It is similar to denormalizing a schema for a traditional relational model once performance bottlenecks are observed.
+Because MongoDB often deals with very large datasets and more demanding workload, it is part of the methodology. 
+In other words, you should not wait after the code is written to apply these transformations.
