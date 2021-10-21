@@ -134,3 +134,43 @@ In other words, you should not wait after the code is written to apply these tra
 6. embedding or reference?
 当父子文档读写大多数情况都是一起的时候，就用embedding;同理子文档使用频率很低，那么就可以用reference。
 另外，如果子文档数据量特别大，已经严重影响了查询性能，就不建议使用embedding.
+
+7. Which of the following are true statements about schema design patterns?
+They often are denormalizations or transformations to improve performance.
+This is correct.
+
+They are a common language to understand design intents.
+This is correct.
+Using the names of the common schema design patterns will help you and your team understand each other 
+on how you intend to model some documents and relationships.
+The suggested patterns to potentially apply to a given use case.
+
+They help normalize the data model.
+This is incorrect.
+The main goal of the patterns is to make the model perform better or make it easier for the application to use.
+It is likely that you have a normalized model before you start applying patterns on the model.
+
+If you stop the modeling phase after the second phase, you will end up with a model that is pretty much normalized.
+Applying schema design patterns is likely to denormalize the data, often to have better performance.
+
+
+8. Which of the following can be validated through schema validation in MongoDB?
+Values have the right type for a given field.
+This is correct.
+This is supported by JSON Schema and also easy to specify in a validator written in MongoDB Query Language (MQL).
+
+Values are within a set of acceptable values for a given field.
+This is correct.
+This is supported by JSON Schema by using the keyword enum which allows you to list the acceptable values.
+There are also additional keywords to support ranges or other ways to list values.
+
+A document has either one of two strict shapes.
+This is correct.
+There is a construct in JSON Schema called oneOf that let you specify two sub-schemas.
+Use this technique for verifying different shapes of documents, including checking a specific shape 
+for a document version.
+
+Documents in different collections have referential integrity.
+This is incorrect.
+Schema validation is done per document. 
+There is no syntax to link a document to another document that is related to the document under validation.
