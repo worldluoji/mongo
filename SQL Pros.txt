@@ -201,3 +201,40 @@ WHERE	    { Field: Value }
 COUNT	    count()
 LIMIT, TOP	limit()
 ORDER BY	sort()
+
+12. MongoDB相对RDBMS的优势
+1) A faulty Primary will be replaced by a new Primary by an automatic election.
+
+Elections of a new Primary node are automatic in MongoDB.
+
+There is no need for any administrative action.
+
+
+2) Failed write operations are retried automatically once by the MongoDB drivers.
+
+Retryable writes are one of the great features of MongoDB.
+
+Retryable writes can overcome most temporary hiccups in the cluster and the network.
+
+From a maintenance point of view, they help do a smooth transition from one Primary node to a new Primary node.
+
+13. Which of the following help achieve a no-downtime schema migration with MongoDB?
+The polymorphism aspect of having documents with different shapes within a collection.
+This is correct.
+Because documents in the same collection can have different shapes,
+we can have documents with the original schema and documents with the new schema.
+Instead of seeing the migration as an atomic operation, 
+it becomes a continuous process throughout the migration.
+
+
+Each document can carry its schema version number.
+This is correct.
+Using a schema version to identify the shape of the document is optional. 
+The alternative is to deduce the version of the schema by the differences in the fields.
+Both approaches highlight the fact that each document must respect one of the schema versions for our collection.
+
+
+Database replication allows us to update one node at the time.
+This is incorrect.
+Database replication allows data synchronization across the different replica members.
+Database replication is not used for changing the schema of the documents.
