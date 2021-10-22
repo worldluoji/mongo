@@ -1,0 +1,189 @@
+1. simple first example
+db.solarSystem.aggregate([{
+  "$match": {
+    "atmosphericComposition": { "$in": [/O2/] },
+    "meanTemperature": { $gte: -40, "$lte": 40 }
+  }
+}, {
+  "$project": {
+    "_id": 0,
+    "name": 1,
+    "hasMoons": { "$gt": ["$numberOfMoons", 0] }
+  }
+}], { "allowDiskUse": true});
+
+2. Help MongoDB pick a movie our next movie night! Based on employee polling, 
+we've decided that potential movies must meet the following criteria:
+imdb.rating is at least 7
+genres does not contain "Crime" or "Horror"
+rated is either "PG" or "G"
+languages contains "English" and "Japanese"
+
+db.movies.aggregate([
+  {
+    $match: {
+      "imdb.rating": { $gte: 7 },
+      "genres": { $nin: [ "Crime", "Horror" ] } ,
+      "rated": { $in: ["PG", "G" ] },
+      "languages": { $all: [ "English", "Japanese" ] }
+    }
+  }
+])
+
+3. project example
+// project ``name`` and ``gravity`` fields, including default ``_id``
+db.solarSystem.aggregate([{ "$project": { "name": 1, "gravity": 1 } }]);
+
+// using dot-notation to express the projection fields
+db.solarSystem.aggregate([{ "$project": { "_id": 0, "name": 1, "gravity.value": 1 } }]);
+
+// reassing ``gravity`` field with value from ``gravity.value`` embeded field
+db.solarSystem.aggregate([{"$project": { "_id": 0, "name": 1, "gravity": "$gravity.value" }}]);
+
+// creating a document new field ``surfaceGravity``
+db.solarSystem.aggregate([{"$project": { "_id": 0, "name": 1, "surfaceGravity": "$gravity.value" }}]);
+
+// creating a new field ``myWeight`` using expressions
+db.solarSystem.aggregate([{"$project": { "_id": 0, "name": 1, "myWeight": { "$multiply": [ { "$divide": [ "$gravity.value", 9.8 ] }, 86 ] } }}]);
+
+project可以使用不止一次，但一般使用一次即可。
+
+
+4. Using the Aggregation Framework, find a count of the number of movies that have a title composed of one word. 
+To clarify, "Cinderella" and "3-25" should count, where as "Cast Away" would not.
+
+db.movies.aggregate([
+  {
+    $match: {
+      title: {
+        $type: "string"
+      }
+    }
+  },
+  {
+    $project: {
+      title: { $split: ["$title", " "] },
+      _id: 0
+    }
+  },
+  {
+    $match: {
+      title: { $size: 1 }
+    }
+  }
+]).itcount()
+
+https://docs.mongodb.com/manual/meta/aggregation-quick-reference/#array-expressions
+https://docs.mongodb.com/manual/meta/aggregation-quick-reference/#string-expressions
+
+5.There are times when we want to make sure that the field is an array, and that it is not empty. 
+We can do this within $match
+{ $match: { writers: { $elemMatch: { $exists: true } } }
+
+6. map
+$map lets us iterate over an array, element by element, performing some transformation on each element. 
+The result of that transformation will be returned in the same place as the original element.
+
+Within $map, the argument to "input" can be any expression as long as it resolves to an array. 
+The argument to "as" is the name of the variable we want to use to refer to each element of the array 
+when performing whatever logic we want. The field as is optional, and if omitted each element must be referred to as $$this:: 
+The argument to "in" is the expression that is applied to each element of the input array, 
+referenced with the variable name specified in as, and prepending two dollar signs:
+
+writers: {
+  $map: {
+    input: "$writers",
+    as: "writer",
+    in: "$$writer"
+  }
+}
+in is where the work is performed
+
+we use the $arrayElemAt expression, which takes two arguments, 
+the array and the index of the element we want. We use the $split expression, 
+splitting the values on " (".
+
+If the string did not contain the pattern specified, the only modification is it is wrapped in an array, 
+so $arrayElemAt will always work.
+
+writers: {
+  $map: {
+    input: "$writers",
+    as: "writer",
+    in: {
+      $arrayElemAt: [
+        {
+          $split: [ "$$writer", " (" ]
+        },
+        0
+      ]
+    }
+  }
+}
+
+7. $setIntersection
+Takes two or more arrays and returns an array that contains the elements that appear in every input array.
+
+$setIntersection has the following syntax:
+
+{ $setIntersection: [ <array1>, <array2>, ... ] }
+
+The arguments can be any valid expression as long as they each resolve to an array. 
+For more information on expressions, see Expressions.
+
+example:
+db.experiments.aggregate(
+  [
+    { $project: { A: 1, B: 1, commonToBoth: { $setIntersection: [ "$A", "$B" ] }, _id: 0 } }
+  ]
+)
+
+8. Let's find how many movies in our movies collection are a "labor of love", 
+where the same person appears in cast, directors, and writers
+
+db.movies.aggregate([
+  {
+    $match: {
+      cast: { $elemMatch: { $exists: true } },
+      directors: { $elemMatch: { $exists: true } },
+      writers: { $elemMatch: { $exists: true } }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      cast: 1,
+      directors: 1,
+      writers: {
+        $map: {
+          input: "$writers",
+          as: "writer",
+          in: {
+            $arrayElemAt: [
+              {
+                $split: ["$$writer", " ("]
+              },
+              0
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    $project: {
+      labor_of_love: {
+        $gt: [
+          { $size: { $setIntersection: ["$cast", "$directors", "$writers"] } },
+          0
+        ]
+      }
+    }
+  },
+  {
+    $match: { labor_of_love: true }
+  },
+  {
+    $count: "labors of love"
+  }
+])
