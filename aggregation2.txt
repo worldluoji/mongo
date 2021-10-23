@@ -291,3 +291,6 @@ db.movies.aggregate([
     $limit: 1
   }
 ])
+
+$trunc truncates a number to a whole integer or to a specified decimal place.
+for example, $trunc : [1234.5678, 2] truncates to two decimal places and returns 1234.56.
