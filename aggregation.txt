@@ -187,3 +187,309 @@ db.movies.aggregate([
     $count: "labors of love"
   }
 ])
+
+9. addFields
+1.$project与$addFields都可以向文档中添加指定字段，如果新增字段与现有字段重名，将用新字段覆盖旧有。
+2.$addFields只能新增字段，或利用字段值覆盖的方式修改旧有字段，无法对旧有字段进行筛选屏蔽
+$project可指定显示某些字段，可以指定屏蔽某些字段（这两种方法不能同时使用），可以屏蔽_id，可以添加或重置现有字段值。
+
+// reassign ``gravity`` field value
+db.solarSystem.aggregate([{"$project": { "gravity": "$gravity.value" } }]);
+
+// adding ``name`` and removing ``_id`` from projection
+db.solarSystem.aggregate([{"$project": { "_id": 0, "name": 1, "gravity": "$gravity.value" } }])''
+
+// adding more fields to the projected document
+db.solarSystem.aggregate([
+{"$project":{
+    "_id": 0,
+    "name": 1,
+    "gravity": "$gravity.value",
+    "meanTemperature": 1,
+    "density": 1,
+    "mass": "$mass.value",
+    "radius": "$radius.value",
+    "sma": "$sma.value" }
+}]);
+
+// using ``$addFields`` to generate the new computed field values
+db.solarSystem.aggregate([
+{"$addFields":{
+    "gravity": "$gravity.value",
+    "mass": "$mass.value",
+    "radius": "$radius.value",
+    "sma": "$sma.value"}
+}]);
+
+// combining ``$project`` with ``$addFields``
+db.solarSystem.aggregate([
+{"$project": {
+    "_id": 0,
+    "name": 1,
+    "gravity": 1,
+    "mass": 1,
+    "radius": 1,
+    "sma": 1}
+},
+{"$addFields": {
+    "gravity": "$gravity.value",
+    "mass": "$mass.value",
+    "radius": "$radius.value",
+    "sma": "$sma.value"
+}}]);
+
+10. geoNear
+The $geoNear operator accepts a document that contains the $geoNear options, 
+such as distanceField and maxDistance.
+
+Consider a collection places that has a 2dsphere index. 
+The following aggregation uses $geoNear to find documents with a location at most 2 meters 
+from the center [ -73.99279 , 40.719296 ] and category equal to Parks.
+
+$geoNear必须放在pipline中的第一个。
+db.places.aggregate([
+   {
+     $geoNear: {
+        near: { type: "Point", coordinates: [ -73.99279 , 40.719296 ] },
+        distanceField: "dist.calculated",
+        maxDistance: 2,
+        query: { category: "Parks" },
+        includeLocs: "dist.location",
+        spherical: true
+     }
+   }
+])
+
+https://docs.mongodb.com/manual/reference/operator/aggregation/geoNear/
+
+11. Cursor-like stages
+// project fields ``numberOfMoons`` and ``name``
+db.solarSystem.find({}, {"_id": 0, "name": 1, "numberOfMoons": 1}).pretty();
+
+// count the number of documents
+db.solarSystem.find({}, {"_id": 0, "name": 1, "numberOfMoons": 1}).count();
+
+// skip documents
+db.solarSystem.find({}, {"_id": 0, "name": 1, "numberOfMoons": 1}).skip(5).pretty();
+
+// limit documents
+db.solarSystem.find({}, {"_id": 0, "name": 1, "numberOfMoons": 1}).limit(5).pretty();
+
+// sort documents
+db.solarSystem.find({}, { "_id": 0, "name": 1, "numberOfMoons": 1 }).sort( {"numberOfMoons": -1 } ).pretty();
+
+// ``$limit`` stage
+db.solarSystem.aggregate([{
+  "$project": {
+    "_id": 0,
+    "name": 1,
+    "numberOfMoons": 1
+  }
+},
+{ "$limit": 5  }]).pretty();
+
+// ``skip`` stage
+db.solarSystem.aggregate([{
+  "$project": {
+    "_id": 0,
+    "name": 1,
+    "numberOfMoons": 1
+  }
+}, {
+  "$skip": 1
+}]).pretty()
+
+// ``$count`` stage
+db.solarSystem.aggregate([{
+  "$match": {
+    "type": "Terrestrial planet"
+  }
+}, {
+  "$project": {
+    "_id": 0,
+    "name": 1,
+    "numberOfMoons": 1
+  }
+}, {
+  "$count": "terrestrial planets"
+}]).pretty();
+在返回的结果中"terrestrial planets"就会显示对应的count数量
+
+// removing ``$project`` stage since it does not interfere with our count
+db.solarSystem.aggregate([{
+  "$match": {
+    "type": "Terrestrial planet"
+  }
+}, {
+  "$count": "terrestrial planets"
+}]).pretty();
+
+
+// ``$sort`` stage
+db.solarSystem.aggregate([{
+  "$project": {
+    "_id": 0,
+    "name": 1,
+    "numberOfMoons": 1
+  }
+}, {
+  "$sort": { "numberOfMoons": -1 }
+}]).pretty();
+
+// sorting on more than one field
+db.solarSystem.aggregate([{
+  "$project": {
+    "_id": 0,
+    "name": 1,
+    "hasMagneticField": 1,
+    "numberOfMoons": 1
+  }
+}, {
+  "$sort": { "hasMagneticField": -1, "numberOfMoons": -1 }
+}]).pretty();
+
+// setting ``allowDiskUse`` option
+db.solarSystem.aggregate([{
+  "$project": {
+    "_id": 0,
+    "name": 1,
+    "hasMagneticField": 1,
+    "numberOfMoons": 1
+  }
+}, {
+  "$sort": { "hasMagneticField": -1, "numberOfMoons": -1 }
+}], { "allowDiskUse": true }).pretty();
+sort使用内存不能超过100M，如果超过了，并且没有使用allowDiskUse: true, MongoDB就会报错。
+
+12. $sample
+Randomly selects the specified number of documents from the input documents.
+{ $sample: { size: <positive integer N> } }
+
+If all of the following conditions are true, $sample uses a pseudo-random cursor to select the N documents:
+$sample is the first stage of the pipeline.
+N is less than 5% of the total documents in the collection.
+The collection contains more than 100 documents.
+
+If any of the previous conditions are false, $sample:
+Reads all documents that are output from a preceding aggregation stage or a collection scan.
+Performs a random sort to select N documents.
+
+https://docs.mongodb.com/manual/reference/operator/aggregation/sample/?jmp=university
+
+
+12. two examples
+example1:
+[
+    {
+        "$match": {
+            "countries": "USA", 
+            "tomatoes.viewer.rating": {
+                "$gte": 3
+            }, 
+            "cast": {
+                "$elemMatch": {
+                    "$exists": true
+                }
+            }
+        }
+    }, 
+    {
+        "$addFields": {
+            "num_favs": {
+                "$size": {
+                    "$setIntersection": [
+                        "$cast", 
+                        [
+                            "Sandra Bullock", 
+                            "Tom Hanks", 
+                            "Julia Roberts", 
+                            "Kevin Spacey", 
+                            "George Clooney"
+                        ]
+                    ]
+                }
+            }
+        }
+    }, 
+    {
+        "$sort": {
+            "num_favs": -1, 
+            "tomatoes.viewer.rating": -1, 
+            "title": -1
+        }
+    }, 
+    {
+        "$skip": 24
+    }, 
+    {
+        "$limit": 1
+    }
+]
+
+
+example2:
+[
+  {
+    "$match" : {
+      "imdb.votes" : {
+        "$gte" : 1
+      },
+      "year" : {
+        "$gte" : 1990
+      },
+      "imdb.rating" : {
+        "$gte" : 1
+      }
+    }
+  },
+  {
+    "$addFields" : {
+      "scaled_votes" : {
+        "$add" : [
+          1,
+          {
+            "$multiply" : [
+              9,
+              {
+                "$divide" : [
+                  {
+                    "$subtract" : [
+                      "$imdb.votes",
+                      5
+                    ]
+                  },
+                  {
+                    "$subtract" : [
+                      1521105,
+                      5
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "$project" : {
+      "_id" : 0,
+      "title" : 1,
+      "normalized_rating" : {
+        "$avg" : [
+          "$imdb.rating",
+          "$scaled_votes"
+        ]
+      }
+    }
+  },
+  {
+    "$sort" : {
+      "normalized_rating" : 1
+    }
+  },
+  {
+    "$limit" : 1
+  }
+]
