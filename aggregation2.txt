@@ -1,0 +1,293 @@
+1. group
+// grouping by year and getting a count per year using the { $sum: 1 } pattern
+db.movies.aggregate([
+  {
+    "$group": {
+      "_id": "$year",
+      "numFilmsThisYear": { "$sum": 1 }
+    }
+  }
+])
+
+// grouping as before, then sorting in descending order based on the count
+db.movies.aggregate([
+  {
+    "$group": {
+      "_id": "$year",
+      "count": { "$sum": 1 }
+    }
+  },
+  {
+    "$sort": { "count": -1 }
+  }
+])
+
+// grouping on the number of directors a film has, demonstrating that we have to
+// validate types to protect some expressions
+db.movies.aggregate([
+  {
+    "$group": {
+      "_id": {
+        "numDirectors": {
+          "$cond": [{ "$isArray": "$directors" }, { "$size": "$directors" }, 0]
+        }
+      },
+      "numFilms": { "$sum": 1 },
+      "averageMetacritic": { "$avg": "$metacritic" }
+    }
+  },
+  {
+    "$sort": { "_id.numDirectors": -1 }
+  }
+])
+
+// showing how to group all documents together. By convention, we use null or an
+// empty string, ""
+db.movies.aggregate([
+  {
+    "$group": {
+      "_id": null,
+      "count": { "$sum": 1 }
+    }
+  }
+])
+
+// filtering results to only get documents with a numeric metacritic value
+db.movies.aggregate([
+  {
+    "$match": { "metacritic": { "$gte": 0 } }
+  },
+  {
+    "$group": {
+      "_id": null,
+      "averageMetacritic": { "$avg": "$metacritic" }
+    }
+  }
+])
+
+2. $reduce, $max, $min
+
+// run to get a view of the document schema
+db.icecream_data.findOne()
+
+// using $reduce to get the highest temperature
+db.icecream_data.aggregate([
+  {
+    "$project": {
+      "_id": 0,
+      "max_high": {
+        "$reduce": {
+          "input": "$trends",
+          "initialValue": -Infinity,
+          "in": {
+            "$cond": [
+              { "$gt": ["$$this.avg_high_tmp", "$$value"] },
+              "$$this.avg_high_tmp",
+              "$$value"
+            ]
+          }
+        }
+      }
+    }
+  }
+])
+
+// performing the inverse, grabbing the lowest temperature
+db.icecream_data.aggregate([
+  {
+    "$project": {
+      "_id": 0,
+      "min_low": {
+        "$reduce": {
+          "input": "$trends",
+          "initialValue": Infinity,
+          "in": {
+            "$cond": [
+              { "$lt": ["$$this.avg_low_tmp", "$$value"] },
+              "$$this.avg_low_tmp",
+              "$$value"
+            ]
+          }
+        }
+      }
+    }
+  }
+])
+
+// note that these two operations can be done with the following operations can
+// be done more simply. The following two expressions are functionally identical
+
+db.icecream_data.aggregate([
+  { "$project": { "_id": 0, "max_high": { "$max": "$trends.avg_high_tmp" } } }
+])
+
+db.icecream_data.aggregate([
+  { "$project": { "_id": 0, "min_low": { "$min": "$trends.avg_low_tmp" } } }
+])
+
+// getting the average and standard deviations of the consumer price index
+db.icecream_data.aggregate([
+  {
+    "$project": {
+      "_id": 0,
+      "average_cpi": { "$avg": "$trends.icecream_cpi" },
+      "cpi_deviation": { "$stdDevPop": "$trends.icecream_cpi" }
+    }
+  }
+])
+
+// using the $sum expression to get total yearly sales
+db.icecream_data.aggregate([
+  {
+    "$project": {
+      "_id": 0,
+      "yearly_sales (millions)": { "$sum": "$trends.icecream_sales_in_millions" }
+    }
+  }
+])
+
+3. For all films that won at least 1 Oscar, calculate the standard deviation, highest, lowest, and average imdb.rating. 
+Use the sample standard deviation expression.
+
+HINT - All movies in the collection that won an Oscar begin with a string resembling
+one of the following in their awards field:
+Won 13 Oscars
+Won 1 Oscar
+
+db.movies.aggregate([
+  {
+    $match: {
+      awards: /Won \d{1,2} Oscars?/
+    }
+  },
+  {
+    $group: {
+      _id: null,
+      highest_rating: { $max: "$imdb.rating" },
+      lowest_rating: { $min: "$imdb.rating" },
+      average_rating: { $avg: "$imdb.rating" },
+      deviation: { $stdDevSamp: "$imdb.rating" }
+    }
+  }
+])
+
+4. unwind
+把数据拆开，每个元素和以前的属性组成新的一条document.
+{ $unwind: <field path> }
+
+{
+  $unwind:
+    {
+      path: <field path>,
+      includeArrayIndex: <string>,
+      preserveNullAndEmptyArrays: <boolean>
+    }
+}
+
+preserveNullAndEmptyArrays:
+If true, if the path is null, missing, or an empty array, $unwind outputs the document.
+If false, if path is null, missing, or an empty array, $unwind does not output a document.
+The default value is false.
+
+
+// finding the top rated genres per year from 2010 to 2015...
+db.movies.aggregate([
+  {
+    "$match": {
+      "imdb.rating": { "$gt": 0 },
+      "year": { "$gte": 2010, "$lte": 2015 },
+      "runtime": { "$gte": 90 }
+    }
+  },
+  {
+    "$unwind": "$genres"
+  },
+  {
+    "$group": {
+      "_id": {
+        "year": "$year",
+        "genre": "$genres"
+      },
+      "average_rating": { "$avg": "$imdb.rating" }
+    }
+  },
+  {
+    "$sort": { "_id.year": -1, "average_rating": -1 }
+  }
+])
+
+// unfortunately we got too many results per year back. Rather than peform some
+// other complex grouping and matching, we just append a simple group and sort
+// stage, taking advantage of the fact the documents are in the order we want
+db.movies.aggregate([
+  {
+    "$match": {
+      "imdb.rating": { "$gt": 0 },
+      "year": { "$gte": 2010, "$lte": 2015 },
+      "runtime": { "$gte": 90 }
+    }
+  },
+  {
+    "$unwind": "$genres"
+  },
+  {
+    "$group": {
+      "_id": {
+        "year": "$year",
+        "genre": "$genres"
+      },
+      "average_rating": { "$avg": "$imdb.rating" }
+    }
+  },
+  {
+    "$sort": { "_id.year": -1, "average_rating": -1 }
+  },
+  {
+    "$group": {
+      "_id": "$_id.year",
+      "genre": { "$first": "$_id.genre" },
+      "average_rating": { "$first": "$average_rating" }
+    }
+  },
+  {
+    "$sort": { "_id": -1 }
+  }
+])
+
+
+calculate how many movies every cast member has been in and get an average imdb.rating for each cast member.
+平均分保留一位小数。
+db.movies.aggregate([
+  {
+    $match: {
+      languages: "English"
+    }
+  },
+  {
+    $project: { _id: 0, cast: 1, "imdb.rating": 1 }
+  },
+  {
+    $unwind: "$cast"
+  },
+  {
+    $group: {
+      _id: "$cast",
+      numFilms: { $sum: 1 },
+      average: { $avg: "$imdb.rating" }
+    }
+  },
+  {
+    $project: {
+      numFilms: 1,
+      average: {
+        $divide: [{ $trunc: { $multiply: ["$average", 10] } }, 10]
+      }
+    }
+  },
+  {
+    $sort: { numFilms: -1 }
+  },
+  {
+    $limit: 1
+  }
+])
