@@ -1,0 +1,244 @@
+1. what is graphLookup?
+Performs a recursive search on a collection, with options for restricting the search by 
+recursion depth and query filter.
+
+$graphLookup provides MongoDB a transitive closure implementation
+Provides MongoDB with graph or graph-like capabilities
+
+graphLookup就像数据结构中的图一样。
+$graphLookup can be used in any position of the pipeline and acts in the same way as a regular $lookup.
+
+
+2. graphLookup使用方法
+
+{
+   $graphLookup: {
+      from: <collection>,
+      startWith: <expression>,
+      connectFromField: <string>,
+      connectToField: <string>,
+      as: <string>,
+      maxDepth: <number>,
+      depthField: <string>,
+      restrictSearchWithMatch: <document>
+   }
+}
+
+The $graphLookup search process is summarized below:
+
+Input documents flow into the $graphLookup stage of an aggregation operation.
+$graphLookup targets the search to the collection designated by the from parameter.
+The fromCollection cannot be sharded.
+For each input document, the search begins with the value designated by startWith.
+开始用startWith去匹配connected, 后面就用connectFromField去匹配connectToField，不断递归，用上一次匹配的结果去查下一次。
+connectFromField value will be use to match connectToField in a recursive match.
+
+maxDepth：Optional. Non-negative integral number specifying the maximum recursion depth.
+Setting the maxDepth field to 0 is equivalent to a non-recursive $graphLookup search stage.
+
+depthField: Optional. Name of the field to add to each traversed document in the search path. T
+he value of this field is the recursion depth for the document, represented as a NumberLong. 
+Recursion depth value starts at zero, so the first lookup corresponds to zero depth.
+
+restrictSearchWithMatch : Optional. A document specifying additional conditions for the recursive search. 
+The syntax is identical to query filter syntax.
+
+example:
+{ "_id" : 1, "name" : "Dev" }
+{ "_id" : 2, "name" : "Eliot", "reportsTo" : "Dev" }
+{ "_id" : 3, "name" : "Ron", "reportsTo" : "Eliot" }
+{ "_id" : 4, "name" : "Andrew", "reportsTo" : "Eliot" }
+{ "_id" : 5, "name" : "Asya", "reportsTo" : "Ron" }
+{ "_id" : 6, "name" : "Dan", "reportsTo" : "Andrew" }
+
+db.employees.aggregate( [
+   {
+      $graphLookup: {
+         from: "employees",
+         startWith: "$reportsTo",
+         connectFromField: "reportsTo",
+         connectToField: "name",
+         as: "reportingHierarchy"
+      }
+   }
+] )
+
+then result is :
+
+{
+   "_id" : 1,
+   "name" : "Dev",
+   "reportingHierarchy" : [ ]
+}
+{
+   "_id" : 2,
+   "name" : "Eliot",
+   "reportsTo" : "Dev",
+   "reportingHierarchy" : [
+      { "_id" : 1, "name" : "Dev" }
+   ]
+}
+{
+   "_id" : 3,
+   "name" : "Ron",
+   "reportsTo" : "Eliot",
+   "reportingHierarchy" : [
+      { "_id" : 1, "name" : "Dev" },
+      { "_id" : 2, "name" : "Eliot", "reportsTo" : "Dev" }
+   ]
+}
+{
+   "_id" : 4,
+   "name" : "Andrew",
+   "reportsTo" : "Eliot",
+   "reportingHierarchy" : [
+      { "_id" : 1, "name" : "Dev" },
+      { "_id" : 2, "name" : "Eliot", "reportsTo" : "Dev" }
+   ]
+}
+{
+   "_id" : 5,
+   "name" : "Asya",
+   "reportsTo" : "Ron",
+   "reportingHierarchy" : [
+      { "_id" : 1, "name" : "Dev" },
+      { "_id" : 2, "name" : "Eliot", "reportsTo" : "Dev" },
+      { "_id" : 3, "name" : "Ron", "reportsTo" : "Eliot" }
+   ]
+}
+{
+   "_id" : 6,
+   "name" : "Dan",
+   "reportsTo" : "Andrew",
+   "reportingHierarchy" : [
+      { "_id" : 1, "name" : "Dev" },
+      { "_id" : 2, "name" : "Eliot", "reportsTo" : "Dev" },
+      { "_id" : 4, "name" : "Andrew", "reportsTo" : "Eliot" }
+   ]
+}
+
+The following table provides a traversal path for the document { "_id" : 5, "name" : "Asya", "reportsTo" : "Ron" }:
+
+Start value
+The reportsTo value of the document:
+
+{ ... "reportsTo" : "Ron" }
+
+Depth 0
+{ "_id" : 3, "name" : "Ron", "reportsTo" : "Eliot" }
+
+Depth 1
+{ "_id" : 2, "name" : "Eliot", "reportsTo" : "Dev" }
+
+Depth 2
+{ "_id" : 1, "name" : "Dev" }
+
+
+example2:
+
+A collection airports with the following documents:
+{ "_id" : 0, "airport" : "JFK", "connects" : [ "BOS", "ORD" ] }
+{ "_id" : 1, "airport" : "BOS", "connects" : [ "JFK", "PWM" ] }
+{ "_id" : 2, "airport" : "ORD", "connects" : [ "JFK" ] }
+{ "_id" : 3, "airport" : "PWM", "connects" : [ "BOS", "LHR" ] }
+{ "_id" : 4, "airport" : "LHR", "connects" : [ "PWM" ] }
+
+A collection travelers with the following documents:
+{ "_id" : 1, "name" : "Dev", "nearestAirport" : "JFK" }
+{ "_id" : 2, "name" : "Eliot", "nearestAirport" : "JFK" }
+{ "_id" : 3, "name" : "Jeff", "nearestAirport" : "BOS" }
+
+
+db.travelers.aggregate( [
+   {
+      $graphLookup: {
+         from: "airports",
+         startWith: "$nearestAirport",
+         connectFromField: "connects",
+         connectToField: "airport",
+         maxDepth: 2,
+         depthField: "numConnections",
+         as: "destinations"
+      }
+   }
+] )
+
+The aggregation operation looks up the nearestAirport value in the airports collection and 
+recursively matches the connects field to the airport field. 
+The operation specifies a maximum recursion depth of 2.
+
+Start value
+The nearestAirport value from the travelers collection:
+{ ... "nearestAirport" : "JFK" }
+
+Depth 0
+{ "_id" : 0, "airport" : "JFK", "connects" : [ "BOS", "ORD" ] }
+
+Depth 1
+{ "_id" : 1, "airport" : "BOS", "connects" : [ "JFK", "PWM" ] }
+{ "_id" : 2, "airport" : "ORD", "connects" : [ "JFK" ] }
+
+Depth 2
+{ "_id" : 3, "airport" : "PWM", "connects" : [ "BOS", "LHR" ] }
+
+
+参考资料：https://docs.mongodb.com/manual/reference/operator/aggregation/graphLookup/
+
+3. lab
+
+db.air_alliances.aggregate([
+  {
+    $match: { name: "OneWorld" }
+  },
+  {
+    $graphLookup: {
+      startWith: "$airlines",
+      from: "air_airlines",
+      connectFromField: "name",
+      connectToField: "name",
+      as: "airlines",
+      maxDepth: 0,
+      restrictSearchWithMatch: {
+        country: { $in: ["Germany", "Spain", "Canada"] }
+      }
+    }
+  },
+  {
+    $graphLookup: {
+      startWith: "$airlines.base",
+      from: "air_routes",
+      connectFromField: "dst_airport",
+      connectToField: "src_airport",
+      as: "connections",
+      maxDepth: 1
+    }
+  },
+  {
+    $project: {
+      validAirlines: "$airlines.name",
+      "connections.dst_airport": 1,
+      "connections.airline.name": 1
+    }
+  },
+  { $unwind: "$connections" },
+  {
+    $project: {
+      isValid: {
+        $in: ["$connections.airline.name", "$validAirlines"]
+      },
+      "connections.dst_airport": 1
+    }
+  },
+  { $match: { isValid: true } },
+  {
+    $group: {
+      _id: "$connections.dst_airport"
+    }
+  }
+])
+
+An important aspect to this pipeline is that the first $graphLookup will act as a regular $lookup 
+since we are setting a maxDepth to zero. 
+The reason why we are taking this approach is due to the match restriction that $graphLookup allows, 
+which can make this stage more efficient. 
+Think back to the earlier lab on $lookup, can you think of a way to simplify the aggregation using $graphLookup instead?
