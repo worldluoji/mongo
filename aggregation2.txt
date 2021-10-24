@@ -294,3 +294,57 @@ db.movies.aggregate([
 
 $trunc truncates a number to a whole integer or to a specified decimal place.
 for example, $trunc : [1234.5678, 2] truncates to two decimal places and returns 1234.56.
+
+5. $lookup
+该命令相当于MySql中的left join, 要求必须在同一个db中
+{
+   $lookup:
+     {
+       from: <collection to join>,
+       localField: <field from the input documents>,
+       foreignField: <field from the documents of the "from" collection>,
+       as: <output array field>
+     }
+}
+
+$lookup matches between localField and foreignField with an equality match
+
+You can't specify a collection in another database to from
+
+The collection specified in from cannot be sharded
+
+Specifying an existing field name to as will overwrite the the existing field
+
+https://docs.mongodb.com/manual/reference/operator/aggregation/lookup/
+
+example:
+Which alliance from air_alliances flies the most routes with either a Boeing 747 or an Airbus A380 
+(abbreviated 747 and 380 in air_routes)?
+
+db.air_routes.aggregate([
+  {
+    $match: {
+      airplane: /747|380/
+    }
+  },
+  {
+    $lookup: {
+      from: "air_alliances",
+      foreignField: "airlines",
+      localField: "airline.name",
+      as: "alliance"
+    }
+  },
+  {
+    $unwind: "$alliance"
+  },
+  {
+    $group: {
+      _id: "$alliance.name",
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $sort: { count: -1 }
+  }
+])
