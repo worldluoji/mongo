@@ -1,0 +1,87 @@
+1. $facet
+New in version 3.4.
+
+Processes multiple aggregation pipelines within a single stage on the same set of input documents. 
+Each sub-pipeline has its own field in the output document where its results are 
+stored as an array of documents.
+
+The $facet stage allows you to create multi-faceted aggregations which characterize data 
+across multiple dimensions, or facets, within a single aggregation stage. 
+Multi-faceted aggregations provide multiple filters and categorizations to guide data browsing and analysis. 
+Retailers commonly use faceting to narrow search results by creating filters on product price, manufacturer, size, etc.
+
+Input documents are passed to the $facet stage only once. 
+$facet enables various aggregations on the same set of input documents, 
+without needing to retrieve the input documents multiple times.
+
+The $facet stage has the following form:
+
+{ $facet:
+   {
+      <outputField1>: [ <stage1>, <stage2>, ... ],
+      <outputField2>: [ <stage1>, <stage2>, ... ],
+      ...
+   }
+}
+
+Specify the output field name for each specified pipeline.
+
+Considerations
+
+The output of the $facet stage is subject to the 16 megabyte BSON Document Size limit. 
+If the results of the $facet stage exceed the BSON Document Size limit, 
+the aggregation produces an error.
+
+2. How to use $facet
+{ $facet:
+   {
+      <outputField1>: [ <stage1>, <stage2>, ... ],
+      <outputField2>: [ <stage1>, <stage2>, ... ],
+      ...
+
+   }
+}
+
+3. sortByCount
+The $sortByCount stage is equivalent to the following $group + $sort sequence:
+
+{ $group: { _id: <expression>, count: { $sum: 1 } } },
+{ $sort: { count: -1 } }
+
+example: 
+{ $sortByCount:  "$employee" }
+
+4. bucket
+New in version 3.4.
+
+Categorizes incoming documents into groups, called buckets, based on a specified expression and 
+bucket boundaries and outputs a document per each bucket. 
+Each output document contains an _id field whose value specifies the inclusive lower bound of the bucket. 
+The output option specifies the fields included in each output document.
+
+$bucket only produces output documents for buckets that contain at least one input document.
+
+
+$bucket requires at least one of the following conditions to be met or the operation throws an error:
+Each input document resolves the groupBy expression to a value within one of the bucket ranges specified by boundaries, 
+or
+A default value is specified to bucket documents whose groupBy values are outside of the boundaries or of a different BSON type than the values in boundaries.
+
+If the groupBy expression resolves to an array or a document, 
+$bucket arranges the input documents into buckets using the comparison logic from $sort.
+
+
+{
+  $bucket: {
+      groupBy: <expression>,
+      boundaries: [ <lowerbound1>, <lowerbound2>, ... ], #区间，前闭后开
+      default: <literal>, #The default value must be less than the lowest boundaries value, or greater than or equal to the highest boundaries value.
+      output: {
+         <output1>: { <$accumulator expression> },
+         ...
+         <outputN>: { <$accumulator expression> }
+      }
+   }
+}
+
+参考资料：https://docs.mongodb.com/manual/reference/operator/aggregation/facet/
