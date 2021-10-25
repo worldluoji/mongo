@@ -14,6 +14,17 @@ Input documents are passed to the $facet stage only once.
 $facet enables various aggregations on the same set of input documents, 
 without needing to retrieve the input documents multiple times.
 
+The $facet stage allows several sub-pipelines to be executed to produce multiple facets.
+The $facet stage allows the applications to generate several different facets with one single database request.
+The $facet stage allows other stages to be included on the sub-pipelines, except for:
+$facet
+$out
+$geoNear
+$indexStats
+$collStats
+Also, the sub-pipelines, defined for each individual facet, cannot share their output accross other parallel facets. 
+Each sub-pipeline will receive the same input data set but does not share the result dataset with parallel facets.
+
 The $facet stage has the following form:
 
 { $facet:
@@ -41,6 +52,67 @@ the aggregation produces an error.
 
    }
 }
+
+example:
+db.movies.aggregate([
+   {
+     $match: {
+       metacritic: { $gte: 0 },
+       "imdb.rating": { $gte: 0 }
+     }
+   },
+   {
+     $project: {
+       _id: 0,
+       metacritic: 1,
+       imdb: 1,
+       title: 1
+     }
+   },
+   {
+     $facet: {
+       top_metacritic: [
+         {
+           $sort: {
+             metacritic: -1,
+             title: 1
+           }
+         },
+         {
+           $limit: 10
+         },
+         {
+           $project: {
+             title: 1
+           }
+         }
+       ],
+       top_imdb: [
+         {
+           $sort: {
+             "imdb.rating": -1,
+             title: 1
+           }
+         },
+         {
+           $limit: 10
+         },
+         {
+           $project: {
+             title: 1
+           }
+         }
+       ]
+     }
+   },
+   {
+     $project: {
+       movies_in_both: {
+         $setIntersection: ["$top_metacritic", "$top_imdb"]
+       }
+     }
+   }
+ ])
 
 3. sortByCount
 The $sortByCount stage is equivalent to the following $group + $sort sequence:
@@ -84,4 +156,174 @@ $bucket arranges the input documents into buckets using the comparison logic fro
    }
 }
 
-参考资料：https://docs.mongodb.com/manual/reference/operator/aggregation/facet/
+groupBy：用来对文档进行分组的表达式。要指定字段路径，请在字段名称前加上美元符号$并将其括在引号中。
+除非$bucket包含默认规范，否则每个输入文档必须将groupBy字段路径或表达式解析为属于边界指定的范围之一的值。
+
+boundaries：一个基于groupBy表达式的值数组，该表达式指定每个bucket的边界。
+每一对相邻的值充当桶的包含下边界和独占上边界。您必须指定至少两个边界。
+
+default：可选的。指定附加bucket的_id的文字，该bucket包含groupBy表达式结果不属于边界指定的bucket的所有文档。
+如果未指定，则每个输入文档必须将groupBy表达式解析为由边界指定的bucket范围中的一个值，否则操作将抛出错误。
+默认值必须小于最低边界值，或大于或等于最高边界值。
+默认值可以是与边界项不同的类型。
+
+output：可选的。除_id字段外，指定输出文档中要包含的字段的文档。要指定要包含的字段，必须使用累加器表达式。
+
+
+db.artists.insertMany([
+
+   { "_id" : 1, "last_name" : "Bernard", "first_name" : "Emil", "year_born" : 1868, "year_died" : 1941, "nationality" : "France" },
+   
+   { "_id" : 2, "last_name" : "Rippl-Ronai", "first_name" : "Joszef", "year_born" : 1861, "year_died" : 1927, "nationality" : "Hungary" },
+   
+   { "_id" : 3, "last_name" : "Ostroumova", "first_name" : "Anna", "year_born" : 1871, "year_died" : 1955, "nationality" : "Russia" },
+   
+   { "_id" : 4, "last_name" : "Van Gogh", "first_name" : "Vincent", "year_born" : 1853, "year_died" : 1890, "nationality" : "Holland" },
+   
+   { "_id" : 5, "last_name" : "Maurer", "first_name" : "Alfred", "year_born" : 1868, "year_died" : 1932, "nationality" : "USA" },
+   
+   { "_id" : 6, "last_name" : "Munch", "first_name" : "Edvard", "year_born" : 1863, "year_died" : 1944, "nationality" : "Norway" },
+   
+   { "_id" : 7, "last_name" : "Redon", "first_name" : "Odilon", "year_born" : 1840, "year_died" : 1916, "nationality" : "France" },
+   
+   { "_id" : 8, "last_name" : "Diriks", "first_name" : "Edvard", "year_born" : 1855, "year_died" : 1930, "nationality" : "Norway" }
+   
+   ])
+   
+   示例：
+   
+   db.artists.aggregate( [
+   
+   // First Stage
+   
+   {
+   
+   $bucket: {
+   
+   groupBy: "$year_born", // 按year_born字段分组
+   
+   boundaries: [ 1840, 1850, 1860, 1870, 1880 ], // 桶的边界
+   
+   default: "Other", // 不属于Bucket的文档的Bucket id【如果一个文档不包含year_born字段，或者它的year_born字段在上面的范围之外，那么它将被放在_id值为“Other”的默认bucket中。】
+   
+   output: { //输出
+   
+   "count": { $sum: 1 },
+   
+   "artists" :
+   
+   {
+   
+   $push: {
+   
+   "name": { $concat: [ "$first_name", " ", "$last_name"] },
+   
+   "year_born": "$year_born"
+   
+   }
+   
+   }
+   
+   }
+   
+   }
+   
+   },
+   
+   // 筛选结果大于3的
+   
+   {
+   
+   $match: { count: {$gt: 3} }
+   
+   }
+   
+   ] )
+   
+   结果是：
+   
+   {
+   
+   "_id" : 1860.0, //桶的包含下界。
+   
+   "count" : 4.0,//桶中文档的计数。
+   
+   "artists" : [ //包含bucket中每个艺术家信息的文档数组。每个文档都包含了艺术家的name，它是艺术家的first_name和last_name的连接(即$concat)
+   
+   {
+   
+   "name" : "Emil Bernard",
+   
+   "year_born" : 1868.0
+   
+   },
+   
+   {
+   
+   "name" : "Joszef Rippl-Ronai",
+   
+   "year_born" : 1861.0
+   
+   },
+   
+   {
+   
+   "name" : "Alfred Maurer",
+   
+   "year_born" : 1868.0
+   
+   },
+   
+   {
+   
+   "name" : "Edvard Munch",
+   
+   "year_born" : 1863.0
+   
+   }
+   
+   ]
+   
+   }
+
+{'$bucket': { 'groupBy': '$field2', 'boundaries': [ "a", "asdas", "z" ], 'default': 'Others'}} 也是正确的
+
+The other two options will end up in error.
+{'$bucket': { 'groupBy': '$field1', 'boundaries': [ "a", 3, 5.5 ]}} 
+will generate inconsistent boundary type error. Boundaries are required to have the same type.
+{'$bucket': { 'groupBy': '$field1', 'boundaries': [ 0.4, Infinity ]}} 
+will generate a not matching branch, bucket, to place non matching documents. 
+The default stage option would prevent such errors.
+
+5. bucketAuto
+Categorizes incoming documents into a specific number of groups, called buckets, 
+based on a specified expression. Bucket boundaries are automatically determined 
+in an attempt to evenly distribute the documents into the specified number of buckets.
+
+Auto Bucketing will, given a number of buckets, try to distribute documents evenly across buckets.
+Auto Bucketing will adhere bucket boundaries to a numerical series set by the granularity option
+
+Each bucket is represented as a document in the output. The document for each bucket contains:
+
+An _id object that specifies the bounds of the bucket.
+The _id.min field specifies the inclusive lower bound for the bucket.
+The _id.max field specifies the upper bound for the bucket. This bound is exclusive for all buckets except the final bucket in the series, where it is inclusive.
+A count field that contains the number of documents in the bucket. The count field is included by default when the output document is not specified.
+
+{
+   $bucketAuto: {
+       groupBy: <expression>,
+       buckets: <number>,
+       output: {
+          <output1>: { <$accumulator expression> },
+          ...
+       }
+       granularity: <string>
+   }
+ }
+
+
+参考资料：
+https://docs.mongodb.com/manual/reference/operator/aggregation/facet/
+https://zhuanlan.zhihu.com/p/
+https://blog.csdn.net/weixin_41422810/article/details/103785346
