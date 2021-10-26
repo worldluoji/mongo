@@ -1,0 +1,214 @@
+1. $redact
+Restricts the contents of the documents based on information stored in the documents themselves.
+
+{ $redact: <expression> }
+The argument can be any valid expression as long as it resolves to the $$DESCEND, $$PRUNE, or $$KEEP 
+system variables.
+
+System Variables
+
+1) $$DESCEND
+$redact returns the fields at the current document level, excluding embedded documents. 
+To include embedded documents and embedded documents within arrays, 
+apply the $cond expression to the embedded documents to determine access for these embedded documents.
+2) $$PRUNE
+$redact excludes all fields at this current document/embedded document level, 
+without further inspection of any of the excluded fields. 
+This applies even if the excluded field contains embedded documents that may have different access levels.
+3) $$KEEP
+$redact returns or keeps all fields at this current document/embedded document level, 
+without further inspection of the fields at this level. 
+This applies even if the included field contains embedded documents that may have different access levels.
+
+$$PRUNE有点break的意思。走到了PRUNE，就终止了。 $$DESCEND则说明满足条件，继续检查下一个。
+
+examples:
+A forecasts collection contains documents of the following form where the tags field lists the
+different access values for that document/embedded document level; 
+i.e. a value of [ "G", "STLW" ] specifies either "G" or "STLW" can access the data:
+
+{
+  _id: 1,
+  title: "123 Department Report",
+  tags: [ "G", "STLW" ],
+  year: 2014,
+  subsections: [
+    {
+      subtitle: "Section 1: Overview",
+      tags: [ "SI", "G" ],
+      content:  "Section 1: This is the content of section 1."
+    },
+    {
+      subtitle: "Section 2: Analysis",
+      tags: [ "STLW" ],
+      content: "Section 2: This is the content of section 2."
+    },
+    {
+      subtitle: "Section 3: Budgeting",
+      tags: [ "TK" ],
+      content: {
+        text: "Section 3: This is the content of section3.",
+        tags: [ "HCS" ]
+      }
+    }
+  ]
+}
+
+A user has access to view information with either the tag "STLW" or "G". 
+To run a query on all documents with year 2014 for this user, 
+include a $redact stage as in the following:
+
+var userAccess = [ "STLW", "G" ];
+db.forecasts.aggregate(
+   [
+     { $match: { year: 2014 } },
+     { $redact: {
+        $cond: {
+           if: { $gt: [ { $size: { $setIntersection: [ "$tags", userAccess ] } }, 0 ] },
+           then: "$$DESCEND",
+           else: "$$PRUNE"
+         }
+       }
+     }
+   ]
+);
+
+The aggregation operation returns the following "redacted" document:
+
+{
+  "_id" : 1,
+  "title" : "123 Department Report",
+  "tags" : [ "G", "STLW" ],
+  "year" : 2014,
+  "subsections" : [
+    {
+      "subtitle" : "Section 1: Overview",
+      "tags" : [ "SI", "G" ],
+      "content" : "Section 1: This is the content of section 1."
+    },
+    {
+      "subtitle" : "Section 2: Analysis",
+      "tags" : [ "STLW" ],
+      "content" : "Section 2: This is the content of section 2."
+    }
+  ]
+}
+
+
+
+example2:
+A collection accounts contains the following document:
+
+{
+  _id: 1,
+  level: 1,
+  acct_id: "xyz123",
+  cc: {
+    level: 5,
+    type: "yy",
+    num: 000000000000,
+    exp_date: ISODate("2015-11-01T00:00:00.000Z"),
+    billing_addr: {
+      level: 5,
+      addr1: "123 ABC Street",
+      city: "Some City"
+    },
+    shipping_addr: [
+      {
+        level: 3,
+        addr1: "987 XYZ Ave",
+        city: "Some City"
+      },
+      {
+        level: 3,
+        addr1: "PO Box 0123",
+        city: "Some City"
+      }
+    ]
+  },
+  status: "A"
+}
+
+In this example document, the level field determines the access level required to view the data.
+
+To run a query on all documents with status A and exclude all fields contained in a 
+document/embedded document at level 5, include a $redact stage that specifies the 
+system variable "$$PRUNE" in the then field:
+
+db.accounts.aggregate(
+  [
+    { $match: { status: "A" } },
+    {
+      $redact: {
+        $cond: {
+          if: { $eq: [ "$level", 5 ] },
+          then: "$$PRUNE",
+          else: "$$DESCEND"
+        }
+      }
+    }
+  ]
+);
+
+The $redact stage evaluates the level field to determine access. If the level field equals 5,
+then exclude all fields at that level, even if the excluded field contains embedded documents 
+that may have different level values, such as the shipping_addr field.
+
+The aggregation operation returns the following "redacted" document:
+
+{
+  "_id" : 1,
+  "level" : 1,
+  "acct_id" : "xyz123",
+  "status" : "A"
+}
+
+2. $out
+Takes the documents returned by the aggregation pipeline and writes them to a specified collection. 
+Starting in MongoDB 4.4, you can specify the output database.
+
+The $out must be the last stage in a pipeline, and is not allowed within a $facet stage. 
+The $out operator lets the aggregation framework return result sets of any size.
+
+The following aggregation operation pivots the data in the books collection in the test database 
+to have titles grouped by authors and then writes the results to the authors collection, 
+also in the test database.
+
+db.getSiblingDB("test").books.aggregate( [
+    { $group : { _id : "$author", books: { $push: "$title" } } },
+    { $out : "authors" }
+] )
+
+
+The following aggregation operation pivots the data in the books collection to have titles grouped by authors 
+and then writes the results to the authors collection in the reporting database:
+db.getSiblingDB("test").books.aggregate( [
+    { $group : { _id : "$author", books: { $push: "$title" } } },
+    { $out : { db: "reporting", coll: "authors" } }
+] )
+
+Behaviors
+Create New Collection
+The $out operation creates a new collection if one does not already exist.
+The collection is not visible until the aggregation completes. 
+If the aggregation fails, MongoDB does not create the collection.
+
+Replace Existing Collection
+If the collection specified by the $out operation already exists, then upon completion of the aggregation, 
+the $out stage atomically replaces the existing collection with the new results collection. 
+Specifically, the $out operation:
+
+Creates a temp collection.
+Copies the indexes from the existing collection to the temp collection.
+Inserts the documents into the temp collection.
+Calls the renameCollection command with dropTarget: true to rename the temp collection to the destination collection.
+The $out operation does not change any indexes that existed on the previous collection. 
+If the aggregation fails, the $out operation makes no changes to the pre-existing collection.
+
+Index Constraints
+The pipeline will fail to complete if the documents produced by the pipeline would violate any unique indexes, including the index on the _id field of the original output collection.
+
+参考资料： https://docs.mongodb.com/manual/reference/operator/aggregation/out/
+
+
+3. $merge
