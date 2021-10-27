@@ -80,6 +80,17 @@ https://docs.mongodb.com/manual/meta/aggregation-quick-reference/#string-express
 We can do this within $match
 { $match: { writers: { $elemMatch: { $exists: true } } }
 
+$elemMatch补充：
+给定scores集合中的以下文件：
+{ _id: 1, results: [ 82, 85, 88 ] }
+{ _id: 2, results: [ 75, 88, 89 ] }
+以下查询仅匹配results 数组包含至少一个大于或等于80且小于的元素的那些文档85。
+db.scores.find(
+   { results: { $elemMatch: { $gte: 80, $lt: 85 } } }
+)
+该查询返回以下文档，因为该元素82大于或等于80且小于85
+{ "_id" : 1, "results" : [ 82, 85, 88 ] }
+
 6. map
 $map lets us iterate over an array, element by element, performing some transformation on each element. 
 The result of that transformation will be returned in the same place as the original element.
