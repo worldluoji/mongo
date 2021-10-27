@@ -17,7 +17,7 @@ without needing to retrieve the input documents multiple times.
 The $facet stage allows several sub-pipelines to be executed to produce multiple facets.
 The $facet stage allows the applications to generate several different facets with one single database request.
 The $facet stage allows other stages to be included on the sub-pipelines, except for:
-$facet
+$facet 即$facet不能嵌套
 $out
 $geoNear
 $indexStats

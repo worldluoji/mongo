@@ -504,3 +504,58 @@ example2:
     "$limit" : 1
   }
 ]
+
+13. $indexStats
+
+Returns statistics regarding the use of each index for the collection. 
+If running with access control, the user must have privileges that include indexStats action.
+
+db.orders.aggregate( [ { $indexStats: { } } ] )
+
+$indexStats must be the first stage in an aggregation pipeline.
+$indexStats is not allowed in transactions.
+
+Modification of an existing index (see collMod command) resets the statistics for that index.
+
+参考：https://docs.mongodb.com/manual/reference/operator/aggregation/indexStats/
+
+
+14. $multiply
+A $multiply expression does take as input an array of expressions.
+The arguments can be any valid expression as long as they resolve to numbers
+
+{ "_id" : 1, "item" : "abc", "price" : 10, "quantity": 2, date: ISODate("2014-03-01T08:00:00Z") }
+{ "_id" : 2, "item" : "jkl", "price" : 20, "quantity": 1, date: ISODate("2014-03-01T09:00:00Z") }
+{ "_id" : 3, "item" : "xyz", "price" : 5, "quantity": 10, date: ISODate("2014-03-15T09:00:00Z") }
+
+db.sales.aggregate(
+  [
+    { $project: { date: 1, item: 1, total: { $multiply: [ "$price", "$quantity" ] } } }
+  ]
+)
+
+https://docs.mongodb.com/manual/reference/operator/aggregation/multiply/
+
+15. $type
+字段的类型是否匹配
+db.addressBook.insertMany(
+  [
+     { "_id" : 1, address : "2030 Martian Way", zipCode : "90698345" },
+     { "_id" : 2, address: "156 Lunar Place", zipCode : 43339374 },
+     { "_id" : 3, address : "2324 Pluto Place", zipCode: NumberLong(3921412) },
+     { "_id" : 4, address : "55 Saturn Ring" , zipCode : NumberInt(88602117) },
+     { "_id" : 5, address : "104 Venus Drive", zipCode : ["834847278", "1893289032"]}
+  ]
+)
+
+db.addressBook.find( { "zipCode" : { $type : 2 } } );
+db.addressBook.find( { "zipCode" : { $type : "string" } } );
+本来应该都是BSON type, 但是在mongodb3.2以后，可以使用alias, 比如"int"表示BSON type中32位整数，
+"string"表示BSON type中的String。而根据官方文档，"string"对应的序号就是2.所以上面查询是等价的，
+但是推荐后者，可以直观的看到类型。
+
+result:
+{ "_id" : 1, "address" : "2030 Martian Way", "zipCode" : "90698345" }
+{ "_id" : 5, "address" : "104 Venus Drive", "zipCode" : [ "834847278", "1893289032" ] }
+
+https://docs.mongodb.com/manual/reference/operator/query/type/
