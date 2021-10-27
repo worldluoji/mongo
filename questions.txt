@@ -344,3 +344,43 @@ This is incorrect.
 Pulling data from many collections, like Relational Databases Management Systems do, is inefficient.
 
 MongoDB uses the power of the Document Model to keep information that needs to be retrieved together in the same location.
+
+17. True or false
+You can increase index usage by moving $match stages to the end of your pipeline
+
+No, you should move $match stages to the beginning of your pipelines!
+
+
+Passing allowDiskUsage to your aggregation queries will seriously increase their performance
+
+No, allowDiskUsage will decrease query performance, but it will be necessary to circumvent the 100MB per stage limit.
+
+
+When $limit and $sort are close together a very performant top-k sort can be performed
+
+Yes, this is true!
+
+
+Transforming data in a pipeline stage prevents us from using indexes in the stages that follow
+
+Yes, this is true. That's why it's important to put all your index using operators at the front of your pipelines!
+
+18. What operators will cause a merge stage on the primary shard for a database?
+$out
+Yes.
+
+$group
+NO.
+If the pipeline includes a sorting or grouping stage, and the allowDiskUse setting is enabled, 
+the merge runs on a randomly-selected shard.(Changed in version 3.6)
+
+$lookup
+Yes.
+If the pipeline includes the $out or $lookup stages, the merge runs on the primary shard.(Changed in version 3.6)
+
+Changed in version 3.2:
+If the pipeline starts with an exact $match on a shard key, 
+the entire pipeline runs on the matching shard only. 
+Previously, the pipeline would have been split, and the work of merging it would have to be done 
+on the primary shard.
+
