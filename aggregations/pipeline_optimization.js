@@ -1,3 +1,10 @@
+// 1) Causing a merge in a sharded deployment will cause all subsequent pipeline stages to be 
+// performed in the same location as the merge
+// 2) The query in a $match stage can be entirely covered by an index.
+// 3) The Aggregation Framework can automatically project fields if the shape of the final document 
+// is only dependent upon those fields in the input document.
+// 4) The Aggregation Framework will automatically reorder stages in certain conditions
+
 // an initial aggregatioin finding all movies where the title begins
 // with a vowel. Notice the $project stage that will prevent a covered query!
 db.movies.aggregate([
