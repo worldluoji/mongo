@@ -212,3 +212,98 @@ The pipeline will fail to complete if the documents produced by the pipeline wou
 
 
 3. $merge
+New in version 4.2.
+
+Writes the results of the aggregation pipeline to a specified collection. 
+The $merge operator must be the last stage in the pipeline.
+
+The $merge stage:
+
+Can output to a collection in the same or different database.
+    Starting in MongoDB 4.4, $merge can output to the same collection that is being aggregated. 
+Creates a new collection if the output collection does not already exist.
+Can incorporate results (insert new documents, merge documents, replace documents, keep existing documents, fail the operation, process documents with a custom update pipeline) into an existing collection.
+Can output to a sharded collection. Input collection can also be sharded.
+
+使用方法：
+{ $merge: {
+    into: <collection> -or- { db: <db>, coll: <collection> },
+    on: <identifier field> -or- [ <identifier field1>, ...],  // Optional
+    let: <variables>,                                         // Optional
+    whenMatched: <replace|keepExisting|merge|fail|pipeline>,  // Optional
+    whenNotMatched: <insert|discard|fail>                     // Optional
+} }
+
+If using all default options for $merge, including writing to a collection in the same database, 
+you can use the simplified form:
+{ $merge: <collection> } // Output collection is in the same database
+
+into: The output collection
+on: Optional. Field or fields that act as a unique identifier for a document. 
+The identifier determines if a results document matches an existing document in the output collection.
+
+whenMatched: replace: 替换； keepExisting: 保持原来的； merge： 原来的和现在的合并；fail:抛出异常
+默认是merge
+merge例子：
+if the output collection has the document:
+{ _id: 1, a: 1, b: 1 }
+And the aggregation results has the document:
+{ _id: 1, b: 5, z: 1 }
+Then, the merged document is:
+{ _id: 1, a: 1, b: 5, z: 1 }
+
+whenNotMatched: insert：插入；discard：Discard the document；fail: 抛出异常
+默认为insert
+
+example1:
+In the following aggregation pipeline, $project excludes the _id field from the documents passed into $merge. 
+When $merge writes these documents to the "newCollection", $merge generates a new _id field and value.
+db.sales.aggregate( [
+   { $project: { _id: 0 } },
+   { $merge : { into : "newCollection" } }
+] )
+
+Create a New Collection if Output Collection is Non-Existent
+The $merge operation creates a new collection if the specified output collection does not exist.
+
+The output collection is created when $merge writes the first document into the collection and is immediately visible.
+If the aggregation fails, any writes completed by the $merge before the error will not be rolled back.
+
+example2:
+db.getSiblingDB("zoo").salaries.aggregate( [
+    { $group: { _id: { fiscal_year: "$fiscal_year", dept: "$dept" }, salaries: { $sum: "$salary" } } },
+    { $merge : { into: { db: "reporting", coll: "budgets" }, on: "_id",  whenMatched: "replace", whenNotMatched: "insert" } }
+] )
+把group后的结果，通过_id作为唯一标识，写入到reporting database的budgets collection中，
+如果已经有匹配的，就replace，如果没有匹配上，就insert.
+
+Unique Index Constraints:
+If the unique index used by $merge for on field(s) is dropped mid-aggregation, 
+there is no guarantee that the aggregation will be killed. 
+If the aggregation continues, there is no guarantee that documents do not have duplicate on field values.
+
+If the $merge attempts to write a document that violates any unique index on the output collection, 
+the operation generates an error. For example:
+
+1) Insert a non-matching document that violates a unique index other than the index on the on field(s).
+2) Fail if there is a matching document in the collection. Specifically, the operation attempts to 
+insert the matching document which violates the unique index on the on field(s).
+3) Replace an existing document with a new document that violates a unique index other than 
+the index on the on field(s).
+4) Merge the matching documents that results in a document that violates a unique index other than 
+the index on the on field(s).
+
+example3:
+Consider an Aggregation Pipeline using the new $merge stage that outputs to the employee_data collection.
+
+we are not expecting to find any matching documents in the employee_data collection:
+
+{
+    $merge: {
+        into: "employee_data",
+        whenNotMatched: "insert",
+        whenMatched: "fail"
+    }
+}
+
+参考资料： https://docs.mongodb.com/manual/reference/operator/aggregation/merge/
