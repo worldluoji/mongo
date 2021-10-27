@@ -307,3 +307,62 @@ we are not expecting to find any matching documents in the employee_data collect
 }
 
 参考资料： https://docs.mongodb.com/manual/reference/operator/aggregation/merge/
+
+4. views
+A MongoDB view is a queryable object whose contents are defined by an aggregation pipeline 
+on other collections or views. 
+MongoDB does not persist the view contents to disk. 
+A view's content is computed on-demand when a client queries the view. 
+MongoDB can require clients to have permission to query the view. 
+MongoDB does not support write operations against views.
+
+Views contain no documents, they are stored aggregations that run when queried.
+Views are read-only and contain no information themselves. 
+The documents "in" a view are simply the result of the definining pipeline being executed.
+
+To create or define a view:
+
+db.createCollection(
+    "<viewName>",
+    {
+        "viewOn" : "<source>",
+        "pipeline" : [<pipeline>],
+        "collation" : { <collation> }
+    }
+)
+
+db.createView(
+    "<viewName>",
+    "<source>",
+    [<pipeline>],
+    {
+        "collation" : { <collation> }
+    }
+)
+
+- You must create views in the same database as the source collection.
+The view definition pipeline cannot include the $out or the $merge stage. 
+If the view definition includes nested pipeline (e.g. the view definition includes $lookup or $facet stage), 
+this restriction applies to the nested pipelines as well.
+
+example:
+给定了survey具有以下文件的集合：
+
+{ _id: 1, empNumber: "abc123", feedback: { management: 3, environment: 3 }, department: "A" }
+{ _id: 2, empNumber: "xyz987", feedback: { management: 2, environment: 3 }, department: "B" }
+{ _id: 3, empNumber: "ijk555", feedback: { management: 3, environment: 4 }, department: "A" }
+
+db.createView(
+    "managementFeedback",
+    "survey",
+    [ { $project: { "management": "$feedback.management", department: 1 } } ]
+)
+
+db.managementFeedback.find()
+该操作返回以下文档：
+
+{ "_id" : 1, "department" : "A", "management" : 3 }
+{ "_id" : 2, "department" : "B", "management" : 2 }
+{ "_id" : 3, "department" : "A", "management" : 3 }
+
+参考资料: https://docs.mongodb.com/manual/core/views/
