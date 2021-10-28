@@ -1,0 +1,136 @@
+Using the air_alliances and air_routes collections, find which alliance has the most unique carriers(airlines) operating between the airports JFK and LHR, in either directions.
+
+Names are distinct, i.e. Delta != Delta Air Lines
+
+src_airport and dst_airport contain the originating and terminating airport information.
+
+
+Atlas Cluster0-shard-0 [primary] aggregations> db.air_alliances.findOne();
+{
+  _id: ObjectId("5980bef9a39d0ba3c650ae9d"),
+  name: 'OneWorld',
+  airlines: [
+    'Air Berlin',         'American Airlines',
+    'British Airways',    'Cathay Pacific',
+    'Finnair',            'Iberia Airlines',
+    'Japan Airlines',     'LATAM Chile',
+    'LATAM Brasil',       'Malaysia Airlines',
+    'Canadian Airlines',  'Qantas',
+    'Qatar Airways',      'Royal Jordanian',
+    'SriLankan Airlines', 'S7 Airlines'
+  ]
+}
+
+Atlas Cluster0-shard-0 [primary] aggregations> db.air_routes.findOne();
+{
+  _id: ObjectId("56e9b39b732b6122f877fa31"),
+  airline: { id: 410, name: 'Aerocondor', alias: '2B', iata: 'ARD' },
+  src_airport: 'CEK',
+  dst_airport: 'KZN',
+  codeshare: '',
+  stops: 0,
+  airplane: 'CR2'
+}
+
+解题思路：
+db.air_routes.aggregate([{$match: {"$or":[{"src_airport":"JFK","dst_airport":"LHR"},{"src_airport":"LHR", "dst_airport":"JFK"}]}}]).itcount();
+db.air_routes.aggregate([{$match: {"$or":[{"src_airport":"JFK","dst_airport":"LHR"},{"src_airport":"LHR", "dst_airport":"JFK"}]}}])
+
+db.air_routes.aggregate([{$match: {"$or":[{"src_airport":"JFK","dst_airport":"LHR"},{"src_airport":"LHR", "dst_airport":"JFK"}]}}, {$lookup: {from: "air_alliances", foreignField:"airlines",localField:"airline.name", as: "alliance"}}]);
+
+返回的的document其中一条：
+{
+    _id: ObjectId("56e9b39c732b6122f8787991"),
+    airline: { id: 2822, name: 'Iberia Airlines', alias: 'IB', iata: 'IBE' },
+    src_airport: 'LHR',
+    dst_airport: 'JFK',
+    codeshare: 'Y',
+    stops: 0,
+    airplane: '744 77W 777',
+    alliance: [
+      {
+        _id: ObjectId("5980bef9a39d0ba3c650ae9d"),
+        name: 'OneWorld',
+        airlines: [
+          'Air Berlin',         'American Airlines',
+          'British Airways',    'Cathay Pacific',
+          'Finnair',            'Iberia Airlines',
+          'Japan Airlines',     'LATAM Chile',
+          'LATAM Brasil',       'Malaysia Airlines',
+          'Canadian Airlines',  'Qantas',
+          'Qatar Airways',      'Royal Jordanian',
+          'SriLankan Airlines', 'S7 Airlines'
+        ]
+      }
+    ]
+  }
+
+
+Atlas Cluster0-shard-0 [primary] aggregations> db.air_routes.aggregate([{$match: {"$or":[{"src_airport":"JFK","dst_airport":"LHR"},{"src_airport":"LHR", "dst_airport":"JFK"}]}}, {$lookup: {from: "air_alliances", foreignField:"airlines",localField:"airline.name", as: "alliance"}},{"$group": {"_id": "$alliance.name"}}]);
+[ { _id: [] }, { _id: [ 'SkyTeam' ] }, { _id: [ 'OneWorld' ] } ]
+Atlas Cluster0-shard-0 [primary] aggregations> db.air_routes.aggregate([{$match: {"$or":[{"src_airport":"JFK","dst_airport":"LHR"},{"src_airport":"LHR", "dst_airport":"JFK"}]}}, {$lookup: {from: "air_alliances", foreignField:"airlines",localField:"airline.name", as: "alliance"}},{"$group": {"_id": "$alliance.name", "airlines":"$airlines"}}]);
+MongoServerError: The field 'airlines' must be an accumulator object
+
+
+db.air_routes.aggregate([
+  {
+    $match: {
+      src_airport: { $in: ["LHR", "JFK"] },
+      dst_airport: { $in: ["LHR", "JFK"] }
+    }
+  },
+  {
+    $lookup: {
+      from: "air_alliances",
+      foreignField: "airlines",
+      localField: "airline.name",
+      as: "alliance"
+    }
+  },
+  {
+    $match: { alliance: { $ne: [] } }
+  },
+  {
+    $addFields: {
+      alliance: { $arrayElemAt: ["$alliance.name", 0] }
+    }
+  },
+  {
+    $group: {
+      _id: "$airline.id",
+      alliance: { $first: "$alliance" }
+    }
+  },
+  {
+    $sortByCount: "$alliance"
+  }
+])
+
+补充：
+1.$first: Returns the value that results from applying an expression to the first document in a group of documents. Only meaningful when documents are in a defined order.
+这里
+{
+    $group: {
+      _id: "$airline.id",
+      alliance: { $first: "$alliance" }
+    }
+}
+即是根据airline.id分组后，取分组中的第一个。
+https://docs.mongodb.com/manual/reference/operator/aggregation/first/
+
+2. { $arrayElemAt: [ <array>, <idx> ] }
+https://docs.mongodb.com/manual/reference/operator/aggregation/arrayElemAt/
+db.users.aggregate([
+   {
+     $project:
+      {
+         name: 1,
+         first: { $arrayElemAt: [ "$favorites", 0 ] },
+         last: { $arrayElemAt: [ "$favorites", -1 ] }
+      }
+   }
+])
+
+
+
+
