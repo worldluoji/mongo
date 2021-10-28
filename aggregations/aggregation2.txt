@@ -318,6 +318,34 @@ Specifying an existing field name to as will overwrite the the existing field
 https://docs.mongodb.com/manual/reference/operator/aggregation/lookup/
 
 example:
+
+Atlas Cluster0-shard-0 [primary] aggregations> db.air_alliances.findOne();
+{
+  _id: ObjectId("5980bef9a39d0ba3c650ae9d"),
+  name: 'OneWorld',
+  airlines: [
+    'Air Berlin',         'American Airlines',
+    'British Airways',    'Cathay Pacific',
+    'Finnair',            'Iberia Airlines',
+    'Japan Airlines',     'LATAM Chile',
+    'LATAM Brasil',       'Malaysia Airlines',
+    'Canadian Airlines',  'Qantas',
+    'Qatar Airways',      'Royal Jordanian',
+    'SriLankan Airlines', 'S7 Airlines'
+  ]
+}
+
+Atlas Cluster0-shard-0 [primary] aggregations> db.air_routes.findOne();
+{
+  _id: ObjectId("56e9b39b732b6122f877fa31"),
+  airline: { id: 410, name: 'Aerocondor', alias: '2B', iata: 'ARD' },
+  src_airport: 'CEK',
+  dst_airport: 'KZN',
+  codeshare: '',
+  stops: 0,
+  airplane: 'CR2'
+}
+
 Which alliance from air_alliances flies the most routes with either a Boeing 747 or an Airbus A380 
 (abbreviated 747 and 380 in air_routes)?
 
