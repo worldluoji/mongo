@@ -1,0 +1,68 @@
+1. Which of the following are use cases in which you should model your data for performance rather than simplicity?
+
+Correct Options:
+
+It is expected that the solution will be designed with only 10 shards.
+
+Don't get caught by the part of the sentence mentioning "only 10 shards". 
+Unless you shard for geographical reasons, it is likely that you use sharding for performance reasons.
+
+The application is being developed by 100 engineers.
+
+This is a substantial team, so it is likely that your project is not that simple.
+
+Incorrect Option:
+
+There is not an applicable design pattern to the solution.
+
+In most systems, there is often a possibility to apply patterns. 
+Whether to do it or not depends on the system in question. 
+Not having the opportunity to apply any pattern probably means that the system is very simple.
+
+2. relation
+one-to-one 一夫一妻
+one-to-many 一个妻子可以有两个孩子
+many-to-many 你的两个朋友，也可以是他的两个朋朋友
+one-to-zillion 表示对应的数量很大，比如1个中国-13亿人，一般可以用[min,likely/meddle,max],
+它其实是one-to-many的特殊情况，由于数据量很大，不建议使用embeded内嵌的形式。
+
+3. 一movie有多个actor,一个actor可能出演多部movie,典型的many-to-many，
+下面说法正确的是？
+Correct Options:
+
+Embedding actors in movies creates duplication of actor information.
+Every actor who stars in more than one movie has their information copied 
+in each movie document they star in. 
+The information stored in the document may be as little as the actor's name, 
+however it is still duplication. 
+Any duplicate information that changed would need to be updated in more than one location.
+
+Embedding actors in movies still requires a separate collection to store all actors.
+If no "source" collection for the actor is kept, 
+there is a risk of losing the information about an actor if the only movie they star in gets deleted. 
+Also, because we keep detailed information about the actor, 
+it is likely that not all of it will be embedded in the movie documents, 
+therefore we need a place to store this information.
+
+
+Incorrect Option:
+
+When using one collection for movies and one collection for actors, 
+all movie documents must have an array of references to the actors in that movie, 
+and all actor documents must have an array of references to the movies they appear in.
+
+When using references to represent a many-to-many relationship, 
+there is a need for an array of references in only one collection. 
+It is possible to have arrays of references in both collections,
+however, it is not necessary and creates unnecessary overhead.
+没有必要在many-to-many的两个collection中，都搞个外键关联。
+
+4. one-to-one
+
+Embed the fields in the document.
+
+Embed the fields as a sub-document in the document.
+
+Link to a single document in another collection.
+
+These three methods are the main ways to represent a one-to-one relationship using a document model.
