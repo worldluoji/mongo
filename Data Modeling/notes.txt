@@ -66,3 +66,159 @@ Embed the fields as a sub-document in the document.
 Link to a single document in another collection.
 
 These three methods are the main ways to represent a one-to-one relationship using a document model.
+
+5. Duplication, Data Staleness and Integrity
+Duplication: 3种情况可以使用。
+1）人和所住的小区是many-to-many的关系，那么人可能会换住的地方，这时候就会update。
+{
+    "username": "xxx",
+    ...
+    "address": {
+    ...
+    }
+}
+
+2) 附加的信息不会变化, 比如电影和演员是many-to-many的关系,一部电影的演员，已经是既定的，那么就可以把actor嵌入到movie里
+{
+    "movie_name": "xxx",
+    ...
+    actors:[...]
+}
+
+3）一部电影的总收入(通过另一个collection计算出来)，可以作为duplication信息放到movie中，方便展示。
+
+但upliction一定要考虑更新的
+
+Staleness
+即用户访问到了失效的数据；用户没有访问到最新的数据。
+The staleness of the data in a system can be reduced by incrementing the frequency at which 
+updates on dependent or duplicated data is done. 
+The minimum, or absence, of staleness happens when dependent or duplicated data is always updated 
+when its source is changed.
+
+Integrity
+When references are removed or changed, modify or remove the related documents. 
+By doing all those changes at once in a multi-document transaction, 
+all changes will either all occur or be aborted without leaving a subset of the changes done.
+值得一提的是，单个document本身就能保证ACID，不需要使用事务。
+
+6. Attribute Pattern
+Some fields share a number of characteristics, and we want to search across those fields.
+This is one of the main reason you should use this pattern. 
+Alternatively to using the pattern for this situation, MongoDB introduces Wildcard Indexes 
+that allow to index together a list of fields.
+
+
+1) 尽量较少index
+index最小化原则，够用即可，index会影响插入和更新的性能
+
+2) key-value 不要作为一个单独的属性，而是放到子数组中
+{
+    "field1": "xxx",
+    "filedKeyValues": [
+        {"k": "k1", "v": "v1"},
+        {"k": "k2", "v": "v2"},
+        ...
+    ]
+}
+
+7. Extented refercnce pattern
+1) 尽量减少join($lookup, $graphLookup)的使用
+2）duplication，应遵循最小化原则，以及不容易变化的数据
+
+An app needs to retrieve a product and information about its supplier.
+
+This is a good scenario for the Extended Reference Pattern. 
+It is likely that we want to carry some information about a supplier with the product, 
+however not all of it. Having fields like the supplier's name, a reference number, 
+and the supplier's phone number should provide all the information we need when looking at a product. 
+Additional information like the complete address and billing contact should be left 
+within the suppliers collection.
+
+8. Subset pattern
+除非内存很大，不缺钱，否则不要搞一个大的collection, 这样可能会导致内存不够，从而使用磁盘，严重影响性能。
+解决方法：将大的collection拆分为常用的和不常用的两个集合；适当的重复信息。
+Subset pattern 适用于：
+The working set does not fit in memory and it is difficult to scale the hardware.
+
+9. Computed pattern
+We need to calculate a value that is displayed 100 times a minute and is based on a field 
+which updates once a minute.
+计算消耗太多的cpu， 就先计算后存起来
+比如排行榜、论坛帖子总数这种，实际不需要实时更新。
+
+10. Bucket pattern
+为了避免数据量过大，进行分组，方便对数据进行管理。
+比如按照日期对搜集的数据进行分组。
+但分组后，可能对查询带来不便，可能需要进行整合，比如夸日期组合；也会对数据分析工具产生不便。
+
+Correct Option:
+
+Our system ingests thousands of log lines each day for each host it monitors.
+
+Trying to keep one document per host or one document per log line may not work very well.
+Keeping a group of log lines per host sounds like a good design, 
+however, knowing the details about the use cases and queries will help to confirm that this is a good model.
+
+
+Incorrect Options:
+
+Our system handles 1 million IOT devices.
+
+This is not sufficient to say that we should be using this pattern. 
+If the devices are not sending data on a regular basis that need to be grouped, 
+then we would not need the pattern. For example, we may just have to keep track of the device, 
+its configuration, and its state.
+
+
+Our system ingests 10 million pieces of data per day from 1 million devices, with 20% coming from 10 devices.
+
+The issue seems more related to the fact that a minority of devices have different behavior 
+than the majority of devices. Consider looking at the Outlier pattern before opting 
+to use the Bucket Pattern in this situation.
+
+
+Our system must embed a one-to-many relationship in one of our models, however, some of the result documents would be too big.
+
+There is not enough information to tell us how we could group the many side of the relationship into buckets. 
+The most likely optimal action to take is to link the relationship instead of embedding it.
+
+
+Our system performs sums and averages over all elements of certain arrays.
+
+It sounds like we should look into the Computed Pattern instead.
+
+
+11. Schema versionaling parttern
+利用版本号来区分不同版本，比如k8s里面，就有一个apiVersion, 通过指定这个apiVersion，选择不同的版本。
+这样新版的k8s，也不会影响旧的api对象的使用。
+还有，比如移动端适配，分为两个版本，相互不影响。新版本上线不会影响旧的，等旧的全部改造完或者不再使用以后，旧的就可以删了。
+
+
+12. Tree pattern
+数据结构中的树。比如通过parent_id指向父元素。
+
+13. Polymorphic pattern
+结构相似的，用一个type去进行区分, 放到一个single collection中。
+
+14. approximation pattern
+实时性不高的，不需要特别准确的数据，比如热榜top10，访问量统计等等。
+读多写少的，也就意味着实时性不高。
+
+15. outliner pattern
+集中研究于最频繁使用的数据，专注于特殊的那部分数据（比如得出xxx结论的20%数据）
+
+A pharmaceutical company needs to implement a design to model the relationships between the company 
+and its partners, customers, and suppliers. A team came up with a design that works perfectly, 
+meeting all performance requirements. However, when loading the real data in the system, 
+they realized that one customer, the U.S. government had too many contacts to be stored 
+into the designated array for this information.
+
+Instead of redesigning the whole system to make this customer fit well into the new data model, 
+which pattern can you use?
+
+In this use case, an alternative to redesigning the whole system and maybe not meeting 
+the performance requirements already achieved, could be to use the Outlier Pattern. 
+The list of contacts can be split into many documents once it surpasses a certain size. 
+Also, the application may want to have a different way to display the contacts 
+by grouping them into many pages for larger sets of contacts.
