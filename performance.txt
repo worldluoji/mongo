@@ -11,6 +11,9 @@ Indexes can decrease write, update, and delete performance.
 example: db.trips.createIndex({ "birth year": 1 })
 可以给subdoc创建索引，也可以创建联合索引。
 
+db.members.createIndex( { "user_id": 1 }, { unique: true } ) 
+则是唯一索引，表示user_id不能重复
+
 2. explain
 // switch to the m201 database
 use m201
