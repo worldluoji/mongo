@@ -1,0 +1,87 @@
+1. mongod
+mongod is the primary daemon process for the MongoDB system. 
+It handles data requests, manages data access, and performs background management operations.
+
+2. 
+Launch mongod in the first shell:
+mongod
+
+Connect to the Mongo shell in the second shell: 
+mongo
+
+To create a new collection 
+db.createCollection("employees")
+
+Try to connect back to Mongo shell, without specifying a port: 
+use admin
+db.shutdownServer()
+exit
+
+3. question 1
+Correct Options:
+
+mongod listens on port 27017
+This is the default port for mongod - to change this, use the --port flag.
+
+database files are stored in the directory /data/db/
+This is the default data directory for mongod - to change this, use the --dbpath flag.
+
+Incorrect Options:
+
+mongod can connect to local and remote clients
+By default, mongod is only bound to localhost, or 127.0.0.1. 
+This means that only local clients can connect - to change this, use the --bind_ip flag.
+
+authentication is enabled
+By default, mongod does not enforce authentication. To change this, use the --auth flag
+
+4. mongod options
+Mongod Options
+Below are some of the available options for mongod. Note that this is not a comprehensive list of all possible mongod configurations. To see all available options, run mongod with the help flag.
+
+mongod --help
+This command will output the various options for mongod with a description of their functionality.
+
+Note: The --fork option is not available on the Windows operating system.
+
+dbpath
+The dbpath is the directory where all the data files for your database are stored. 
+The dbpath also contains journaling logs to provide durability in case of a crash. 
+As we saw before, the default dbpath is /data/db; 
+however, you can specify any directory that exists on your machine. 
+The directory must have read/write permissions since database and journaling files will be written to the directory. 
+To use the dbpath option, include the dbpath flag and specify the name of your directory:
+mongod --dbpath <directory path>
+
+port
+The port option allows us to specify the port on which mongod will listen for client connections. 
+If we don't specify a port, it will default to 27017. 
+Database clients should specify the same port to connect to mongod. 
+To specify a port, run: 
+mongod --port <port number>
+
+auth
+auth enables authentication to control which users can access the database. 
+When auth is specified, all database clients who want to connect to mongod first need to authenticate.
+Before any database users have been configured, a Mongo shell running on localhost will have access to the database. 
+We can then configure users and their permission levels using the shell. 
+Once one or more users have been configured, the shell will no longer have default access. 
+To enable authentication, run mongod with the auth option: 
+mongod --auth
+
+bind_ip
+The bind_ip option allows us to specify which IP addresses mongod should bind to. 
+When mongod binds to an IP address, clients from that address are able to connect to mongod. 
+For instance, if we wanted to allow clients on IP address 123.123.123.123 to access our database, 
+we'd use the following command: 
+mongod --bind_ip 123.123.123.123
+To bind to multiple addresses and/or hosts, you can specify them in a comma-separated list:
+mongod --bind_ip localhost,123.123.123.123
+If using the bind_ip option with external IP addresses, 
+it's recommended to enable auth to ensure that remote clients connecting to mongod have the proper credentials.
+
+For documentation on all of the mongod options, check out the mongod Reference Page.
+
+
+mongod --port 27000
+那么通过 mongo --port 27000 就能连入

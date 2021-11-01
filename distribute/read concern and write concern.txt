@@ -1,0 +1,9 @@
+
+1. Read Concern
+https://docs.mongodb.com/manual/reference/read-concern/
+
+2. Write Concern
+https://docs.mongodb.com/manual/reference/write-concern/#std-label-write-
+
+3. Default Read Concern and Write Concern
+https://docs.mongodb.com/manual/reference/mongodb-defaults/
