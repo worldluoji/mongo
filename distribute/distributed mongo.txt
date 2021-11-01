@@ -2,12 +2,26 @@
 A distributed system in MongoDB includes both replica sets-- or Replica Clusters-- 
 for a high availability solution, and Shard Clusters.
 Shard Clusters are our mechanism to allow horizontal scalability of our data.
+Sharding 给了MongoDB 水平扩展的能力。
 
-2. what should be considered in a distributed system in MongoDB?
+Sharding is a method for distributing data across multiple machines. 
+MongoDB uses sharding to support deployments with very large data sets and high throughput operations.
+
+Sharding is an extremely important topic for large-scale systems that will impact your design decisions. 
+Most systems do not reach sizes that require Sharding. 
+However if your system is already sharded or you are sure that your system will need to be, 
+you should get familiar with the main concepts of Sharding.
+
+大多数应用其实都不需要Sharding，如果确实大数据需要sharding,设计时就应该重新考虑。
+
+https://docs.mongodb.com/manual/sharding/
+
+2. What should be considered in a distributed system in MongoDB?
 1) When more than one machine talks to each other, latency will be involved.
+比读从的情况，MongoDB都是写主，主同步到从，就会有延迟。
 
 2) read implications and write implications
-Data is generally spread across different notes. 
+Data is generally spread across different nodes. 
 It's either copies of the data or different sets of data in different charts.
 There will be read implications, so things will be performing in a different pace, 
 and obviously, also, write implications.
@@ -17,13 +31,12 @@ A replica set in MongoDB is a group of mongod processes that maintain the same d
 Replica sets provide redundancy and high availability, and are the basis for all production deployments. 
 This section introduces replication in MongoDB as well as the components and architecture of replica sets. 
 The section also provides tutorials for common tasks related to replica sets.
+replica set 提供副本集，为了高可用。这点与Elasticsearch一样。
 
-Apart from the main purpose of providing high availability, in case of failure of a node, 
-we will still have availability of a service provided by the remaining nodes, 
-but replica sets can also provide a few other functions, 
-like offloading ventral consistency data to secondaries, 
-privileging your primary for operational workload, 
-or having specific workload with target indexes configuration on secondary nodes.
+replica sets can also provide a few other functions：
+1) offloading ventral consistency data to secondaries, 
+2) privileging your primary for operational workload, 
+3) having specific workload with target indexes configuration on secondary nodes.
 
 Read Operations to Replica Sets:
 By default, clients reads from a replica set's primary; 
@@ -55,21 +68,21 @@ Shard Nodes are in themselves replica sets.(分片本身就是副本集)
 
 Read Operations to Sharded Clusters
 Sharded clusters allow you to partition a data set among a cluster of mongod instances in a way 
-that is nearly transparent to the application. For an overview of sharded clusters, 
-see the Sharding section of this manual.
+that is nearly transparent to the application. 
 For a sharded cluster, applications issue operations to one of the mongos instances associated
 with the cluster.
 
 Read operations on sharded clusters are most efficient when directed to a specific shard.
 Queries to sharded collections should include the collection's shard key. 
-When a query includes a shard key, the mongos can use cluster metadata from the config database
+When a query includes a shard key, the mongos can use cluster metadata from the config databases
 to route the queries to shards.
+在分片的情况下，通过shard key进行查询才能高效，这时候mongos会通过在config database里的元数据，路由到对应的
+shards进行查询。
 
 If a query does not include the shard key, the mongos must direct the query to all shards in the cluster.
 These scatter gather queries can be inefficient. 
 On larger clusters, scatter gather queries are unfeasible for routine operations.
 
-to make efficient usage of our cluster data distribution we should use our shard key in our queries.
 
 Write Operations on Sharded Clusters
 For sharded collections in a sharded cluster, the mongos directs write operations from applications 
@@ -86,9 +99,10 @@ This can affect the performance of write operations in the cluster.
 5. What is shard key?
 The shard key is either a single indexed field or multiple fields covered by a compound index 
 that determines the distribution of the collection's documents among the cluster's shards.
-If the collection is empty, sh.shardCollection() creates the index on the shard key 
-if such an index does not already exists.
+If the collection is empty, sh.shardCollection() creates the index on the shard key if such an index does not already exists.
 If the collection is not empty, you must create the index first before using sh.shardCollection().
+shard key不是单个索引字段，就是复合索引覆盖的多个字段，在使用shardCollection()分片前，如果对应的collection不为空，
+则需要先创建索引。
 
 MongoDB can enforce a uniqueness constraint on a ranged shard key index. 
 Through the use of a unique index on the shard key, MongoDB enforces uniqueness on the entire key 
@@ -122,7 +136,9 @@ This is the shard that contains the upper bound of max key, which is often refer
 If we were to have a monotonically decreasing value, then all of our writes would be coming in to this shard, 
 the shard where the lower bound is set to min key, our first shard.
 
-Now, its OK to have a monotonically increasing value in your shard key, as long as it's not the first field.
+shard key单调增或者单调减,会使得数据都路由到一台机器上，因次要避免单调增和单调减。
+
+Its OK to have a monotonically increasing value in your shard key, as long as it's not the first field.
 
 Adding a monotonically increasing value to the end of our shard key actually is a great idea, 
 because it increases the total cardinality of our shard key since it's guaranteed to always be unique.
@@ -134,13 +150,18 @@ because it increases the total cardinality of our shard key since it's guarantee
 With an ordered list of operations, MongoDB executes the operations serially. 
 If an error occurs during the processing of one of the write operations, 
 MongoDB will return without processing any remaining write operations in the list. 
+ordered 为true,那么按顺序执行，需要异常就退出，后面的就不执行了。
 
 With an unordered list of operations, MongoDB can execute the operations in parallel, 
 but this behavior is not guaranteed. 
 If an error occurs during the processing of one of the write operations, 
 MongoDB will continue to process remaining write operations in the list.
+ordered为false,那么并行执行，一个执行失败不会影像其它。
 
-Executing an ordered list of operations on a sharded collection will generally be slower than executing an unordered list since with an ordered list, each operation must wait for the previous operation to finish.
+
+Executing an ordered list of operations on a sharded collection will generally be slower than 
+executing an unordered list since with an ordered list, 
+each operation must wait for the previous operation to finish.
 try {
     db.characters.bulkWrite(
        [
