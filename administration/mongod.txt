@@ -81,7 +81,55 @@ If using the bind_ip option with external IP addresses,
 it's recommended to enable auth to ensure that remote clients connecting to mongod have the proper credentials.
 
 For documentation on all of the mongod options, check out the mongod Reference Page.
-
+https://docs.mongodb.com/manual/reference/configuration-options
 
 mongod --port 27000
 那么通过 mongo --port 27000 就能连入
+
+5. Configuraion File
+Launch mongod and fork the process:
+
+ 
+mongod --dbpath /data/db --logpath /data/log/mongod.log --fork
+Launch mongod with many configuration options:
+
+Note that all "ssl" options have been edited to use "tls" instead. 
+As of MongoDB 4.2, options using "ssl" have been deprecated.
+
+mongod --dbpath /data/db --logpath /data/log/mongod.log --fork --replSet "M103" 
+--keyFile /data/keyfile --bind_ip "127.0.0.1,192.168.103.100" --tlsMode requireTLS 
+--tlsCAFile "/etc/tls/TLSCA.pem" --tlsCertificateKeyFile "/etc/tls/tls.pem"
+Example configuration file, with the same configuration options as above:
+ 
+storage:
+  dbPath: "/data/db"
+systemLog:
+  path: "/data/log/mongod.log"
+  destination: "file"
+replication:
+  replSetName: M103
+net:
+  bindIp : "127.0.0.1,192.168.103.100"
+tls:
+  mode: "requireTLS"
+  certificateKeyFile: "/etc/tls/tls.pem"
+  CAFile: "/etc/tls/TLSCA.pem"
+security:
+  keyFile: "/data/keyfile"
+processManagement:
+  fork: true
+
+mongod --dbpath /data/db --logpath /data/logs --replSet M103 
+--bind_ip '127.0.0.1,192.168.103.100' 
+--keyFile /data/keyfile --fork
+
+mongod --config mongod.conf
+mongod -f mongod.conf  和上面是等价的，表示通过配置文件mongod.conf启动mongodb
+
+net：
+  port: 27000
+security:
+  authorization: enabled
+表示端口27000且开启认证
+
+https://docs.mongodb.com/manual/reference/configuration-options
