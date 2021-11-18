@@ -65,6 +65,10 @@ mongoimport --uri="mongodb+srv://<your username>:<your password>@<your cluster>.
 Modifies the import process so that the target instance drops the collection before 
 importing the data from the input.
 
+Mongoexport must convert every document from BSON to JSON. This takes much longer than mongodump, which simply outputs BSON.
+By default, mongoexport sends output to standard output, but mongodump writes to a file.
+Mongodump can create a data file and a metadata file, but mongoexport just creates a data file.
+
 reference：https://docs.mongodb.com/database-tools/mongoimport/#compatibility
 
 7. common operations
