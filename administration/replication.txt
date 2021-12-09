@@ -359,3 +359,54 @@ If a majority of nodes are unavailable, elections cannot take place.
 All nodes have an equal chance to become primary.
 
 Priority and recency of a node's oplog dictates which nodes are more likely to become primary.
+
+
+To have a primary you need a majority number of nodes up. 
+If 2 nodes are down with a 3 nodes replica set, then you cannot have majority so you have no primary.
+
+In MongoDB, the primary is elected by conducting an election among the competing nodes. A node must get majority of the votes.
+
+A replica set with 3 voting members, Primary-Secondary-Secondary (P-S-S):
+
+The majority of all voting members is 2.
+The number of all data-bearing voting members is 3.
+So, a node must get 2 votes to become the Primary. However, when 2 nodes are down, the remaining node can never become Primary.
+
+If the remaining node was in the Primary state, it will step down and it will transition to a secondary state.
+
+If the remaining node was in the Secondary state - nothing will happen.
+
+So, we can say there will be no Primary when 2 nodes are down in the given setup.
+
+Now, I would like you to think more about it and try to answer the lab questions based on the information that I have shared with you.
+
+
+8. Problem
+
+Evaluate the effect of using a write concern with a replica set where one node has failed.
+
+Consider a 3-node replica set with only 2 healthy nodes, that receives the following insert() operation:
+
+use payroll
+db.employees.insert(
+  { "name": "Aditya", "salary_USD": 50000 },
+  { "writeConcern": { "w": 3, "wtimeout": 1000 } }
+)
+Which of the following is true about this write operation?
+
+1) When a writeConcernError occurs, the document is still written to the healthy nodes.
+This is correct.
+The WriteResult object simply tells us whether the writeConcern was successful or not - it will not undo successful writes from any of the nodes.
+
+2) The unhealthy node will have the inserted document when it is brought back online.
+This is correct.
+When the unhealthy node comes back online, it rejoins the replica set and its oplog is compared with the other nodes' oplogs. 
+Any missing operations will be replayed on the newly healthy node.
+
+3) w: "majority" would also cause this write operation to return with an error.
+w: "majority" requests acknowledgement that a majority of nodes in a replica set have registered the write. 
+In a three-node replica set, only two nodes are required for a majority, so the two healthy nodes are sufficient to satisfy this writeConcern.
+The write operation will always return with an error, even if wtimeout is not specified.
+
+4) If wtimeout is not specified, the write operation will be retried for an indefinite amount of time until the writeConcern is successful. 
+If the writeConcern is impossible, like in this example, it may never return anything to the client.
