@@ -2,8 +2,60 @@
 1. Read Concern
 https://docs.mongodb.com/manual/reference/read-concern/
 
+local： 1.  没有读取限制，会直接返回读到的数据，当level为"local"时，不能确保此数据已经写入majority(大多数节点)。
+比如，副本集中，主节点写入数据，但是还未同步到备节点时，level为"local"仍能读到。设置为此级别主要是保证读数据的时效性，
+但是有可能会读到会被回滚掉的脏数据。 
+2.  默认会在主节点读取数据。 
+3.  开启[causally consistent sessions]（会话因果一致）特性时，默认在备节点中读取数据。
+
+available： 1.  没有读取限制，会直接返回读到的数据，当level为available时，不能确保此数据已经写入majority(大多数节点)。
+比如，副本集中，主节点写入数据，但是还未同步到备节点时，level为"available"仍能读到。设置为此级别主要是保证读数据的时效性，
+但是有可能会读到会被回滚掉的脏数据。 
+2.  未开启[causally consistent sessions]（会话因果一致）特性时，默认在备节点中读取数据。 
+3.  开启[causally consistent sessions]（会话因果一致）特性时，不支持设置level为"available"。 
+4.  对于分片集合，"available"是Read Concern所有level中延迟最低的级别，相应的会牺牲一定的一致性，可能会读取到“孤本”数据。
+
+majority： 1.  仅会返回确保写入majority(大多数节点)的数据。设置为"majority"时读到的数据是最可靠的，绝对不会有脏数据。
+2.  "majority"仅支持WiredTiger存储引擎。 
+3.  "majority"支持开启[causally consistent sessions]（会话因果一致）特性。
+
+linearizable： 1.  此模式会确保在本次读操作下发之前所有下发的写操作均成功写入后，才会查询返回确保写入majority(大多数节点)的数据。 
+2.  此模式会等待本次读操作前的所有写操作执行完成后才会返回结果。 
+3.  要确保读到的数据的可靠性，需要设置配置项[writeConcernMajorityJournalDefault]为true，即开启写安全（Write Concern）。 
+4.  读取级别设置为"linearizable"时，可以通过配置，指定只从主节点(Primary)上读取数据。 5.  开启[causally consistent sessions]（会话因果一致）特性时，不支持设置level为"linearizable"。 6.  读取级别设置为"linearizable"时，确保配套使用"maxTimeMS"参数，来避免读取超时阻塞会话。 7.  当查询语句过滤条件可以唯一标识单个文档时(即查询语句能且仅能筛选出唯一的一条记录时)，才能确保读取线性安全读取
+
 2. Write Concern
-https://docs.mongodb.com/manual/reference/write-concern/#std-label-write-
+https://docs.mongodb.com/manual/reference/write-concern
+
+Problem:
+Consider a 3-member replica set, where one secondary is offline. 
+Which of the following write concern levels can still return successfully?
+
+Majority is the correct answer. "all" and "online" are not valid write concerns.
+"3" would block indefinitely if one out of three members was offline.
+
+Write concern can include the following fields:
+{ w: <value>, j: <boolean>, wtimeout: <number> }
+
+the w option to request acknowledgment that the write operation has propagated to a specified number of mongod instances or to mongod instances with specified tags.
+the j option to request acknowledgment that the write operation has been written to the on-disk journal,
+the wtimeout option to specify a time limit to prevent write operations from blocking indefinitely.
 
 3. Default Read Concern and Write Concern
 https://docs.mongodb.com/manual/reference/mongodb-defaults/
+
+Starting in MongoDB 5.0, the implicit default write concern is w: majority.
+However, special considerations are made for deployments containing arbiters:
+The voting majority of a replica set is 1 plus half the number of voting members, rounded down. 
+If the number of data-bearing voting members is not greater than the voting majority,
+the default write concern is { w: 1 }.
+In all other scenarios, the default write concern is { w: "majority" }.
+
+MongoDB 4.4版本 ，The default write concern is w: 1.
+
+
+MongoDB 5.0， Read Concern 默认是local，
+MongoDB 4.4,  Read Concern 默认：
+"available" ： Reads against secondaries if the reads are not
+associated with causally consistent sessions.
+其它情况local

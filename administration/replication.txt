@@ -177,3 +177,185 @@ Checking replica set overview after election:
 
 
 rs.isMaster()
+
+3. Replication configuration document
+Replication configuration document is used to configure our replica sets.
+This is where the properties of our replica sets are defined,
+and the document is shared across all members of the set.
+
+You can access the configuration of a replica set using the rs.conf() method or 
+the replSetGetConfig command.
+
+To modify the configuration for a replica set, use the rs.reconfig() method, 
+passing a configuration document to the method. 
+
+
+The members field is where a bunch of our basic configuration is going to be determined-- 
+which nodes are part of the set, what roles do they have, 
+and what kind of topology we want to define is set on this field.
+
+_id field is the name of the replica set.
+
+The next field is version.
+Now, a version is just an integer that gets incremented every time 
+the current configuration of our replica set changes.
+
+There is a vast amount of other configuration options that either deal with
+internal replication mechanisms or overall configurations of the sets.
+
+https://docs.mongodb.com/manual/reference/replica-configuration/
+
+
+4. replication commands
+rs.status()
+rs.status is used to report on the general health of each node in the set.
+
+rs.isMaster()
+This one describes the role of the node where we ran this command from.
+And it also gives us some information about the replica set itself.
+
+Atlas atlas-zdff09-shard-0 [primary] myFirstDatabase> rs.isMaster();
+{
+  topologyVersion: {
+    processId: ObjectId("619402010462947bba914973"),
+    counter: Long("6")
+  },
+  hosts: [
+    'luoji-mongo-cluster-shard-00-00.ejuuu.mongodb.net:27017',
+    'luoji-mongo-cluster-shard-00-01.ejuuu.mongodb.net:27017',
+    'luoji-mongo-cluster-shard-00-02.ejuuu.mongodb.net:27017'
+  ],
+  setName: 'atlas-zdff09-shard-0',
+  setVersion: 6,
+  ismaster: true,
+  secondary: false,
+  primary: 'luoji-mongo-cluster-shard-00-01.ejuuu.mongodb.net:27017',
+  tags: {
+    provider: 'AWS',
+    nodeType: 'ELECTABLE',
+    region: 'AP_SOUTHEAST_1',
+    workloadType: 'OPERATIONAL'
+  },
+  ......
+ 
+db.serverStatus()['repl']
+This command gives us a lot of information about the Mongo D process, but we're just going to look at the section called repl.
+The output from this command is going to be very similar to the output of rs.isMaster.
+ 
+rs.printReplicationInfo()
+This command only has data about the oplog and specifically only the oplog for the node we're currently connected to.
+It'll give us exact time stamps for the first and last events that occurred in the oplog for that node.
+
+即只会打印出第一次和最后一次操作的时间
+rs.printReplicationInfo() will only return timestamps for oplog statements; 
+the statements themselves can be found in local.oplog.rs.
+rs.printReplicationInfo() only contains information pertaining to the node where the command was run.
+
+
+5. local db
+Every mongod instance has its own local database, 
+which stores data used in the replication process, and other instance-specific data. 
+The local database is invisible to replication: collections in the local database are not replicated.
+
+Atlas atlas-zdff09-shard-0 [primary] myFirstDatabase> show dbs;
+m201                 101 MB
+sample_airbnb       12.3 kB
+sample_analytics    9.52 MB
+sample_geospatial   1.06 MB
+sample_mflix        50.2 MB
+sample_restaurants  6.24 MB
+sample_supplies     1.17 MB
+sample_training     47.4 MB
+sample_weatherdata   2.7 MB
+admin                336 kB
+local                821 MB
+
+里面的local就是 local database.
+
+Atlas atlas-zdff09-shard-0 [primary] local> show collections;
+clustermanager
+oplog.rs
+replset.election
+replset.initialSyncId
+replset.minvalid
+replset.oplogTruncateAfterPoint
+startup_log
+
+https://docs.mongodb.com/manual/reference/local-database/
+
+
+Correct answers:
+
+The local database will not be replicated.
+
+Any data written to this database will not be replicated across the different nodes of the set.
+
+The oplog.rs collection contains all operations that will be replicated.
+
+The oplog.rs collection holds all the statements that get replicated across the different replica set members.
+
+Incorrect answers:
+
+You cannot write to the local database.
+
+Given the correct permissions, an authorized user can write data to the local db. That said, we strongly advise against that.
+
+The local database does not allow the creation of other collections.
+
+Although we discourage it, you can write new collections to the local database.
+
+We should drop the oplog.rs collection from time to time to avoid it becoming too big.
+
+We cap the oplog.rs collection instead of dropping it entirely.
+
+
+6. reconfig
+It does not require any of the nodes to restarted.
+When we reconfigure a replica set with rs.reconfig(), we do not need to restart any of the individual nodes.
+
+It does not require any of the configuration files to be updated.
+When we reconfigure a replica set with rs.reconfig(), we do not need to update any of the nodes' configuration files.
+
+When issuing an updated configuration to rs.reconfig(), the entire configuration document is required.
+
+Storing replica set configuration as a variable cfg:
+cfg = rs.conf()
+
+Setting the priority of a node to 0, so it cannot become primary (making the node "passive"): 
+cfg.members[2].priority = 0
+
+
+Updating our replica set to use the new configuration cfg:
+rs.reconfig(cfg)
+
+
+Checking the new topology of our set:
+rs.isMaster()
+
+Forcing an election in this replica set (although in this case, we rigged the election so only one node could become primary):
+rs.stepDown()
+
+Checking the topology of our set after the election:
+rs.isMaster()
+
+
+7. failover and election
+Correct answers:
+
+Nodes with priority 0 cannot be elected primary.
+
+Setting a node's priority to 0 guarantees that node will never become primary.
+
+Nodes with higher priority are more likely to be elected primary.
+
+Raising a node's priority doesn't guarantee that node will be elected primary, but it does increase the likelihood.
+
+Incorrect answers:
+
+Elections can take place anytime while the primary is available.
+
+If a majority of nodes are unavailable, elections cannot take place.
+
+All nodes have an equal chance to become primary.
+
+Priority and recency of a node's oplog dictates which nodes are more likely to become primary.
