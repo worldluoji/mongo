@@ -93,6 +93,7 @@ MongoDB partitions data in a sharded collection into ranges based on the values 
 Then, MongoDB distributes these chunks to shards. 
 The shard key determines the distribution of chunks to shards. 
 This can affect the performance of write operations in the cluster.
+chunks是左闭右开的。
 
 参考资料：https://docs.mongodb.com/manual/core/distributed-queries/?jmp=university
 
@@ -142,6 +143,11 @@ Its OK to have a monotonically increasing value in your shard key, as long as it
 
 Adding a monotonically increasing value to the end of our shard key actually is a great idea, 
 because it increases the total cardinality of our shard key since it's guaranteed to always be unique.
+
+shardKey的三个设计原则：
+1）not monotonical  如果单调，就会都路由到一台机器上
+2) high cardinality  即可以分布得比较均匀
+3) low frequency 即重复的比较少
 
 参考资料：https://docs.mongodb.com/manual/core/sharding-shard-key/#std-label-shard-key
 

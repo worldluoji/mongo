@@ -1,0 +1,374 @@
+1. True or false
+The mongos configuration file needs to specify the config servers.
+
+This is correct.
+
+Mongos uses the data from the config servers, so it cannot function without communicating with the CSRS.
+
+
+The mongos configuration file doesn't need to have a dbpath.
+
+This is correct.
+
+Mongos doesn't store any data itself, because all the data it uses is stored on the config servers.
+
+
+The config server configuration files need to specify mongos.
+
+This is incorrect.
+
+Mongos' configuration file references the CSRS or standalone config server; not the other way around.
+
+
+Users must be created on mongos when auth is enabled.
+
+This is incorrect.
+
+Mongos inherits its users from the config servers.
+
+
+The mongos configuration file doesn't need to have a port.
+
+This is incorrect.
+
+Every mongos (and mongod) process needs to be assigned a port to run on.
+
+2. sharding结构的组成
+1) The configuration servers
+In a sharded cluster, collection metadata is stored on the configuration servers.
+mongos
+
+2) Mongos
+Mongos is just a router - when mongos determines which shard to route a request, 
+it consults the config servers for the collection's metadata.
+
+3) shard
+存储业务数据，数据可以分布在不通的机器上。
+
+
+3. when to shard
+Our organization outgrows the most powerful servers available, limiting our vertical scaling options.
+This is correct - sharding can provide an alternative to vertical scaling.
+
+Government regulations require data to be located in a specific geography.
+This is correct - sharding allows us to store different pieces of data in specific countries or regions.
+
+We are holding more than 5TB per server and operational costs increase dramatically.
+This is correct - generally, when our deployment reaches 2-5TB per server, we should consider sharding.
+
+总结起来，就是数据量很大，一台机器存不下，又没办法给机器扩容时，需要sharding.
+
+4. True or false
+Shard keys must be supported by an index
+This answer is correct. All shard keys must be supported by an index with the same document fields.
+
+Shard keys are used to route queries to specific shards
+This answer is correct. Shard keys are used to organize documents into chunks and shards, and mongos can use this to route queries.
+
+Shard keys must include the _id field
+This answer is incorrect. Shard keys can include the _id field, but they do not have to.
+
+5. config db
+When should you manually write data to the Config DB?
+The config database is used and maintained internally by MongoDB, 
+and you shouldn't write to it unless directed to by MongoDB Documentation or Support Engineers.
+
+If you'd like to explore the collections on the config database, you can find the instructions here:
+
+Switch to config DB:
+use config
+
+Query config.databases:
+db.databases.find().pretty()
+
+Query config.collections:
+db.collections.find().pretty()
+
+Query config.shards:
+db.shards.find().pretty()
+
+Query config.chunks:
+db.chunks.find().pretty()
+
+Query config.mongos:
+db.mongos.find().pretty()
+
+config db保存了mongos、shards以及chunks的信息。
+
+6.  Sharding Strategy
+有两种常用的Sharding方式：hashed、ranged。
+
+Hashed Sharding
+Hashed Sharding方式使用在某一字段（Field）上指定哈希索引的方式指定其为shard key。
+指定shard key例子：sh.shardCollection(“ccse.stu”, {“name”:”hashed”})
+
+
+MongoDB自动计算哈希值，用户不需要对shard key进行哈希。
+【注】不清楚MongoDB自带的哈希函数是什么。
+
+哈希分片的好处是使得数据分区更加均匀，但是不支持范围查询，做范围查询就是在所有片上进行搜索。
+
+Ranged Sharding
+基于范围的分区的好处是能够支持范围查询，指定shard key：sh.shardCollection(“ccse.stu”, {“name” : 1, “height” : 1})。
+
+范围分区可以指定多个字段，这和指定复合索引差不多。但是需要注意的是：
+1. Hashed Sharding只能指定一个字段
+2. Ranged Sharding不能同时指定hash字段，即像这样：sh.shardCollection("ccse.stu", {"name" : 1, "height" : "hashed"})，是不允许的。
+
+下面Ranged Sharding下选取shard key的一些官方建议：
+
+Shard Key的基数
+Shard Key的基数决定了Chunk最多有多少。因为同一Shard Key的被存储在一个Chunk中，Chunk分裂不会将同一Shard Key的拆分。
+
+假如有如下模型的Document：
+{
+price : 20
+month : 1
+}
+
+如果指定month为shard key，那么最多只要12个chunk，如果数据一多，那么只能是chunk不断增长，就算增加分片也没有意义。
+
+如何想要指定的shard key的基数不大，可以考虑复合索引，再加一个基数大的字段。
+
+Shard Key的频率
+再以上面那个例子说明，如果6月的数据特别多，而其他月份的数据很少，这样就是频率问题了，也是需要注意的。
+
+Shard Key非单调变化
+假如2.2.1节中的例子选择price为shard key，如果shard key单调递增，那么数据虽然会被分布到不同节点，但在插入时有可能只会往一个节点上插入。因为shard key相近的分布在同一节点，这应该很好理解。
+
+
+Unique Shard Key
+对于一个分区的Collection，只有可能存在以下两种unique key：
+1). _id
+2). 在shard key上的建立的索引，或复合索引里shard key包含在首位。
+
+3). Shard Key 的限制
+Shard Key size
+一个 shard key 大小不能超过512个字节
+
+Shard Key是不可变的
+如果你想要换另一种shad key，官方建议以下步骤：
+
+Dump all data from MongoDB into an external format.
+Drop the original sharded collection.
+Configure sharding using the new shard key.
+Pre-split the shard key range to ensure initial even distribution.
+Restore the dumped data into MongoDB.
+简言之，就是先备份数据，然后删除，重新选择shard key，再导入数据。
+Shard Key在文档中的值是不变的
+不能换Shard Key
+不能更新Shard Key的值
+
+
+7. 配置一个shard cluster
+
+f you'd like to deploy a sharded cluster on your machine, you can find the commands from the lecture here:
+
+Configuration file for first config server csrs_1.conf:
+
+1) 配置config server
+sharding:
+  clusterRole: configsvr
+replication:
+  replSetName: m103-csrs
+security:
+  keyFile: /var/mongodb/pki/m103-keyfile
+net:
+  bindIp: localhost,192.168.103.100
+  port: 26001
+systemLog:
+  destination: file
+  path: /var/mongodb/db/csrs1.log
+  logAppend: true
+processManagement:
+  fork: true
+storage:
+  dbPath: /var/mongodb/db/csrs1
+csrs_2.conf:
+
+ 
+sharding:
+  clusterRole: configsvr
+replication:
+  replSetName: m103-csrs
+security:
+  keyFile: /var/mongodb/pki/m103-keyfile
+net:
+  bindIp: localhost,192.168.103.100
+  port: 26002
+systemLog:
+  destination: file
+  path: /var/mongodb/db/csrs2.log
+  logAppend: true
+processManagement:
+  fork: true
+storage:
+  dbPath: /var/mongodb/db/csrs2
+csrs_3.conf:
+
+ 
+sharding:
+  clusterRole: configsvr
+replication:
+  replSetName: m103-csrs
+security:
+  keyFile: /var/mongodb/pki/m103-keyfile
+net:
+  bindIp: localhost,192.168.103.100
+  port: 26003
+systemLog:
+  destination: file
+  path: /var/mongodb/db/csrs3.log
+  logAppend: true
+processManagement:
+  fork: true
+storage:
+  dbPath: /var/mongodb/db/csrs3
+Starting the three config servers:
+
+ 
+mongod -f csrs_1.conf
+mongod -f csrs_2.conf
+mongod -f csrs_3.conf
+
+Connect to one of the config servers:
+
+mongo --port 26001
+Initiating the CSRS:
+
+rs.initiate()
+Creating super user on CSRS:
+
+use admin
+db.createUser({
+  user: "m103-admin",
+  pwd: "m103-pass",
+  roles: [
+    {role: "root", db: "admin"}
+  ]
+})
+
+Authenticating as the super user:
+
+db.auth("m103-admin", "m103-pass")
+Add the second and third node to the CSRS:
+
+ 
+rs.add("192.168.103.100:26002")
+rs.add("192.168.103.100:26003")
+
+
+2) 配置mongos
+Mongos config (mongos.conf):
+ 
+sharding:
+  configDB: m103-csrs/192.168.103.100:26001,192.168.103.100:26002,192.168.103.100:26003
+security:
+  keyFile: /var/mongodb/pki/m103-keyfile
+net:
+  bindIp: localhost,192.168.103.100
+  port: 26000
+systemLog:
+  destination: file
+  path: /var/mongodb/db/mongos.log
+  logAppend: true
+processManagement:
+  fork: true
+Start the mongos server:
+ 
+mongos -f mongos.conf
+
+
+Connect to mongos:
+
+vagrant@m103:~$ mongo --port 26000 --username m103-admin --password m103-pass --authenticationDatabase admin
+Check sharding status:
+
+MongoDB Enterprise mongos> sh.status()
+
+
+3) 配置各个节点
+Updated configuration for node1.conf:
+ 
+sharding:
+  clusterRole: shardsvr
+storage:
+  dbPath: /var/mongodb/db/node1
+  wiredTiger:
+    engineConfig:
+      cacheSizeGB: .1
+net:
+  bindIp: 192.168.103.100,localhost
+  port: 27011
+security:
+  keyFile: /var/mongodb/pki/m103-keyfile
+systemLog:
+  destination: file
+  path: /var/mongodb/db/node1/mongod.log
+  logAppend: true
+processManagement:
+  fork: true
+replication:
+  replSetName: m103-repl
+Updated configuration for node2.conf:
+
+ 
+sharding:
+  clusterRole: shardsvr
+storage:
+  dbPath: /var/mongodb/db/node2
+  wiredTiger:
+    engineConfig:
+      cacheSizeGB: .1
+net:
+  bindIp: 192.168.103.100,localhost
+  port: 27012
+security:
+  keyFile: /var/mongodb/pki/m103-keyfile
+systemLog:
+  destination: file
+  path: /var/mongodb/db/node2/mongod.log
+  logAppend: true
+processManagement:
+  fork: true
+replication:
+  replSetName: m103-repl
+Updated configuration for node3.conf:
+
+ 
+sharding:
+  clusterRole: shardsvr
+storage:
+  dbPath: /var/mongodb/db/node3
+  wiredTiger:
+    engineConfig:
+      cacheSizeGB: .1
+net:
+  bindIp: 192.168.103.100,localhost
+  port: 27013
+security:
+  keyFile: /var/mongodb/pki/m103-keyfile
+systemLog:
+  destination: file
+  path: /var/mongodb/db/node3/mongod.log
+  logAppend: true
+processManagement:
+  fork: true
+replication:
+  replSetName: m103-repl
+Connecting directly to secondary node (note that if an election has taken place in your replica set, the specified node may have become primary):
+
+ 
+mongo --port 27012 -u "m103-admin" -p "m103-pass" --authenticationDatabase "admin"
+Shutting down node:
+
+use admin
+db.shutdownServer()
+Restarting node with new configuration:
+
+mongod -f node2.conf
+Stepping down current primary:
+
+rs.stepDown()
+Adding new shard to cluster from mongos:
+sh.addShard("m103-repl/192.168.103.100:27012")
