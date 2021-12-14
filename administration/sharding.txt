@@ -172,12 +172,35 @@ sh.setBalancerState(boolean)
 8. The mongos is responsible for merging the results of a standard find operation.
 如果查询有shard key, 那么通过shard key直接到对应的shard查询(target query)，这样会很高效；
 如果没有shard key，或者是范围查询（limit() skip() sort()），那么会从多个shard查询，并由mongos 
-merge最终的结果(scatter query)。
+merge最终的结果(scatter gather)。
 
 一个特殊情况：
 When used in conjunction with a limit(), the mongos will pass the limit() 
 plus the value of the skip() to the shards to ensure a sufficient number of documents 
 are returned to the mongos to apply the final limit() and skip() successfully.
+
+Given a collection that is sharded on the following shard key:
+
+{ "sku" : 1, "name" : 1 }
+
+Which of the following queries results in a targeted query?
+db.products.find( { "sku" : 1337, "name" : "MongoHacker" } ), db.products.find( { "name" : "MongoHacker", "sku" : 1337 } )
+
+This is correct.
+
+These two queries are actually identical, and can both be targeted using the shard key.
+
+db.products.find( { "sku" : 1337 } )
+
+This is correct.
+
+This query includes the sku prefix and can therefore be targeted.
+
+db.products.find( { "name" : "MongoHacker" } )
+
+This is incorrect.
+
+This query doesn't include the sku prefix, and cannot be targeted.
 
 
 9. 配置一个shard cluster
