@@ -159,10 +159,19 @@ Shard Key在文档中的值是不变的
 不能换Shard Key
 不能更新Shard Key的值
 
+7. Balance
+Start the balancer:
+sh.startBalancer(timeout, interval)
 
-7. 配置一个shard cluster
+Stop the balancer:
+sh.stopBalancer(timeout, interval)
 
-f you'd like to deploy a sharded cluster on your machine, you can find the commands from the lecture here:
+Enable/disable the balancer:
+sh.setBalancerState(boolean)
+
+8. 配置一个shard cluster
+
+if you'd like to deploy a sharded cluster on your machine, you can find the commands from the lecture here:
 
 Configuration file for first config server csrs_1.conf:
 
