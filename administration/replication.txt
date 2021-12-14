@@ -165,6 +165,8 @@ Adding other members to replica set:
  
 rs.add("m103:27012")
 rs.add("m103:27013")
+这里“m103”在实际操作时要换为mongodb的具体IP或域名
+
 Getting an overview of the replica set topology:
 
  
