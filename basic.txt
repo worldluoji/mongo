@@ -391,6 +391,11 @@ After the cursor is populated with the filter data that's the result of the Find
 we can then apply the sort() method, which will sort the data based on the criteria that we provided.
 不管sort还是limit在前面，sort都会先执行，再执行limit
 
+skip
+以下实例只会显示第二条文档数据
+db.col.find({},{"title":1,_id:0}).limit(1).skip(1)
+{ "title" : "Java 教程" }
+
 16. index
 索引，用于提高大数据时的查询，类似MySql中的索引。
 
