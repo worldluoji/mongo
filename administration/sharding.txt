@@ -415,3 +415,33 @@ Stepping down current primary:
 rs.stepDown()
 Adding new shard to cluster from mongos:
 sh.addShard("m103-repl/192.168.103.100:27012")
+
+
+enable sharding:
+The sh.enableSharding() has the following form:
+sh.enableSharding(
+   <database>,
+   <primary shard>  // Optional. Available starting in MongoDB 4.2.2 (and 4.0.14)
+)
+
+或者：
+The enableSharding command has the following syntax:
+
+Recommended. Specify just the database for which to enable sharding.
+
+db.adminCommand( {
+   enableSharding: "<database name>"
+} )
+
+Optionally, starting in MongoDB 4.2.2 (and 4.0.14), you can include the primary shard specification in the command, although this is not recommended:
+
+db.adminCommand( {
+   enableSharding: "<database name>",
+   primaryShard: "<shard name>"  // Available starting in MongoDB 4.2.2 (and 4.0.14)
+} )
+
+
+对一个集合sharding之前要创建索引：
+db.m103.createIndex({"sku":1})
+sharding a collection:
+sh.shardCollection("m103.products", { "sku":1 } )
