@@ -211,6 +211,18 @@ https://docs.mongodb.com/manual/reference/replica-configuration/
 4. replication commands
 rs.status()
 rs.status is used to report on the general health of each node in the set.
+返回的信息的意义：
+name是副本集节点的ip和端口信息
+health表示副本集中该节点是否正常，0表示不正常，1表示正常
+state表示节点的身份，1表示主节点，2表示secondary节点
+stateStr用于对节点身份进行字符描述，PRIMARY表示主节点，SECONDARY表示副节点
+uptime 从成员可到达一直到现在经历的时间，单位是秒。
+optimeDate 每个成员oplog最后一次操作发生的时间，这个时间是心跳报上来的，因此可能会存在延迟
+lastHeartbeat 当前服务器最后一次收到其他成员心跳的时间，如果网络故障等可能这个时间会大于2秒
+pinMs 心跳从当前服务器达到某个成员所花费的平均时间
+syncingTo 当前服务器从哪个节点在做同步
+self 这个信息出现在执行rs.status()函数的成员信息中
+errmsg 成员在心跳请求中返回的状态信息，通过是一些状态信息，不全是错误信息。
 
 rs.isMaster()
 This one describes the role of the node where we ran this command from.
@@ -412,3 +424,8 @@ The write operation will always return with an error, even if wtimeout is not sp
 
 4) If wtimeout is not specified, the write operation will be retried for an indefinite amount of time until the writeConcern is successful. 
 If the writeConcern is impossible, like in this example, it may never return anything to the client.
+
+
+9.
+Replica sets can have any number of members, although an odd number is recommended.
+
