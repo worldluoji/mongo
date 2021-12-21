@@ -434,3 +434,119 @@ upsert is a hybird of insert and update
 19. Compass时MongoDB官方推出的一个强大的运维管理端
 A graphical User Interface Product
 可以查看各个collection的可视化信息，查询某个collection中的数据，查看某个collection占用的空间等基本信息等等。
+
+
+20. findOneAndUpdate
+Updates a single document based on the filter and sort criteria.
+找到满足的第一个，就去update这一个。
+
+db.collection.findOneAndUpdate(
+  <filter>,
+  <update document or aggregation pipeline>, // Changed in MongoDB 4.2
+  {
+    projection: <document>,
+    sort: <document>,
+    maxTimeMS: <number>, // 超时时间
+    upsert: <boolean>,
+    returnNewDocument: <boolean>,
+    collation: <document>,
+    arrayFilters: [ <filterdocument1>, ... ] // An array of filter documents that determine which array elements to modify for an update operation on an array field
+  }
+)
+
+db.grades.insert([
+{ _id: 6305, name : "A. MacDyver", "assignment" : 5, "points" : 24 },
+{ _id: 6308, name : "B. Batlock", "assignment" : 3, "points" : 22 },
+{ _id: 6312, name : "M. Tagnum", "assignment" : 5, "points" : 30 },
+{ _id: 6319, name : "R. Stiles", "assignment" : 2, "points" : 12 },
+{ _id: 6322, name : "A. MacDyver", "assignment" : 2, "points" : 14 },
+{ _id: 6234, name : "R. Stiles", "assignment" : 1, "points" : 10 }]);
+
+db.grades.findOneAndUpdate(
+  { "assignment" : 2 },
+  { $inc: { "points" : 5 } }
+)
+只有_id 6319的这条会被更新
+
+return:
+{ _id: 6319, name: "R. Stiles", "assignment" : 2, "points" : 12 }
+
+If returnNewDocument was true, the operation would return the updated document instead.
+
+db.collection.findOneAndUpdate() with upsert: true can be run on an existing collection or a non-existing collection. 
+If run on a non-existing collection, the operation creates the collection.
+
+21. findAndModify
+Modifies and returns a single document. 
+By default, the returned document does not include the modifications made on the update. 
+To return the document with the modifications made on the update, use the new option.
+
+db.collection.findAndModify({
+  query: <document>,
+  sort: <document>,
+  remove: <boolean>,
+  update: <document or aggregation pipeline>, // Changed in MongoDB 4.2
+  new: <boolean>,
+  fields: <document>,
+  upsert: <boolean>,
+  bypassDocumentValidation: <boolean>, //  to bypass document validation during the operation. This lets you update documents that do not meet the validation requirements.
+  writeConcern: <document>,
+  collation: <document>,
+  arrayFilters: [ <filterdocument1>, ... ],
+  let: <document> // Added in MongoDB 5.0
+});
+
+For remove operations, if the query matches a document, 
+findAndModify() returns the removed document. 
+If the query does not match a document to remove, findAndModify() returns null.
+
+If the new parameter is not set or is false:
+
+the pre-modification document if the query matches a document;
+otherwise, null.
+
+If new is true:
+the modified document if the query returns a match;
+the inserted document if upsert: true and no document matches the query;
+otherwise, null.
+
+db.grades.findAndModify(
+  {
+    query: { "assignment" : 5 },
+    update: { $inc: { score: 1 } },
+    upsert: true
+  }
+)
+同样只会针对第一个找到的"assignment":5的document, 由于grades中，没有score字段，upsert会帮你加入对应字段
+
+db.grades.find();
+{ "_id" : 6305, "name" : "A. MacDyver", "assignment" : 5, "points" : 24, "score" : 1 }
+{ "_id" : 6308, "name" : "B. Batlock", "assignment" : 3, "points" : 22 }
+{ "_id" : 6312, "name" : "M. Tagnum", "assignment" : 5, "points" : 30 }
+{ "_id" : 6319, "name" : "R. Stiles", "assignment" : 2, "points" : 17 }
+{ "_id" : 6322, "name" : "A. MacDyver", "assignment" : 2, "points" : 14 }
+{ "_id" : 6234, "name" : "R. Stiles", "assignment" : 1, "points" : 10 }
+
+
+由于没有people这个collection,会创建people这个collection
+db.people.findAndModify(
+  {
+    query: { "assignment" : 0 },
+    update: { $inc: { score: 1 } },
+    upsert: true
+  }
+)
+
+db.people.find();
+{ "_id" : ObjectId("61c1bbfe84f551850e91ef59"), "assignment" : 5, "score" : 1 }
+
+
+db.people2.findAndModify(
+  {
+    query: { "assignment" : 0 },
+    update: { $inc: { score: 1 } },
+  }
+)
+返回null，并且不会创建people2.
+
+https://docs.mongodb.com/manual/reference/method/db.collection.findAndModify/
