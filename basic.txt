@@ -152,6 +152,10 @@ db.grades.updateOne({ "student_id": 250, "class_id": 339 },
 deleteOne: 只删除匹配的一条
 deleteMany: 匹配的全部删除
 
+7. save
+The db.collection.save() method is used to updates an existing document 
+or inserts a new document.
+
 8. what is mongo shell?
 It is a fully functioning JavaScript interpreter.
 This is correct.
