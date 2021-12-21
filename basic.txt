@@ -25,6 +25,13 @@ Comes from the word replicate - to copy something.
 
 Cluster - group of servers that store your data.
 
+_id is a field required in every MongoDB document. 
+The _id field must have a unique value for the collection it is used in. 
+You can think of the _id field as the document's Primary Key. 
+If you create a new document without an _id field, 
+MongoDB automatically creates the field and assigns a unique BSON ObjectId. 
+If the document contains an _id field, the _id value must be unique within the collection to avoid duplicate key error.
+
 4. What is MongoDB Atlas?
 
 They are both MongoDB products. 
@@ -127,8 +134,23 @@ ordered默认为true，会按顺序插入，如果遇到错误，后面的也就
 ordered为false,则_id为3的也能插入成功。
 
 5) update
+
+db.collection.update(
+  <query>,
+  <update>,
+  {
+    upsert: <boolean>, // Creates a new document if no documents match the query
+    multi: <boolean>, // If set to true, updates multiple documents that meet the query criteria. If set to false, updates one document. The default value is false.
+    writeConcern: <document>, 
+    collation: <document>,
+    arrayFilters: [ <filterdocument1>, ... ],
+    hint:  <document|string>, // Added in MongoDB 4.2
+    let: <document> // Added in MongoDB 5.0
+  }
+)
+
 updateOne: 只更新匹配的第一条
-updateMany: 匹配的全部更新
+updateMany: 匹配的全部更新, 其实就是封装了update里面multi为true
 
 example1:
 Update all documents in the zips collection where the city field is equal to "HUDSON" 
@@ -148,6 +170,27 @@ db.grades.updateOne({ "student_id": 250, "class_id": 339 },
                                              "score": 100 }
                                 }
                      })
+
+example4: hint
+db.members.insertMany( [
+  { "_id" : 1, "member" : "abc123", "status" : "P", "points" :  0,  "misc1" : null, "misc2" : null },
+  { "_id" : 2, "member" : "xyz123", "status" : "A", "points" : 60,  "misc1" : "reminder: ping me at 100pts", "misc2" : "Some random comment" },
+  { "_id" : 3, "member" : "lmn123", "status" : "P", "points" :  0,  "misc1" : null, "misc2" : null },
+  { "_id" : 4, "member" : "pqr123", "status" : "D", "points" : 20,  "misc1" : "Deactivated", "misc2" : null },
+  { "_id" : 5, "member" : "ijk123", "status" : "P", "points" :  0,  "misc1" : null, "misc2" : null },
+  { "_id" : 6, "member" : "cde123", "status" : "A", "points" : 86,  "misc1" : "reminder: ping me at 100pts", "misc2" : "Some random comment" }
+] )
+
+db.members.createIndex( { status: 1 } )
+db.members.createIndex( { points: 1 } )
+The following update operation explicitly hints to use the index {status: 1 }:
+db.members.update(
+  { points: { $lte: 20 }, status: "P" },     // Query parameter
+  { $set: { misc1: "Need to activate" } },   // Update document
+  { multi: true, hint: { status: 1 } }       // Options
+)
+The db.collection.explain().update() does not modify the documents.
+
 6. delete
 deleteOne: 只删除匹配的一条
 deleteMany: 匹配的全部删除
