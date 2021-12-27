@@ -659,3 +659,43 @@ To create a compound hashed index, specify hashed as the value of any single ind
 
 db.collection.createIndex( { "fieldA" : 1, "fieldB" : "hashed", "fieldC" : -1 } )
 
+18. hidden index
+A hidden index is simply a regular index that is not visible to the query planner. 
+When evaluating the execution plans, MongoDB ignores such kind of indexes.
+
+Building an index on MongoDB is quite expensive, in particular for large collections 
+or when you don’t have enough available memory. 
+Disabling indexes is useful for testing different execution plans without dropping any index for real. 
+You can hide or unhide an index at any time at no cost for the database.
+
+the following operation creates a hidden ascending index on the borough field:
+
+db.addresses.createIndex(
+   { borough: 1 },
+   { hidden: true }
+);
+
+1）db.collection.hideIndex()
+
+For example, create an index without hiding:
+
+db.restaurants.createIndex( { borough: 1, ratings: 1 } );
+
+To hide the index, you can specify either:
+
+the index key specification document to the db.collection.hideIndex() method:
+
+db.restaurants.hideIndex( { borough: 1, ratings: 1 } ); // Specify the index key specification document
+
+the index name to the db.collection.hideIndex() method:
+
+db.restaurants.hideIndex( "borough_1_ratings_1" );  // Specify the index name
+
+To verify, run db.collection.getIndexes() on the restaurants collection:
+
+db.restaurants.getIndexes()
+
+
+2） db.restaurants.unhideIndex
+db.restaurants.unhideIndex( { borough: 1, city: 1 } );  // Specify the index key specification document
+db.restaurants.unhideIndex( "borough_1_ratings_1" );    // Specify the index name
