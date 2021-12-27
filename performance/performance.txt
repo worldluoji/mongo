@@ -316,9 +316,11 @@ db.products.insert({
   ]
 });
 
+有数组才会有multikey index
 // rerun our same query (still uses an index, but isMultiKey is now true)
 exp.find({ "stock.quantity": 100 })
 
+multikey index不能包含两个数组
 // creating an index on two array fields will fail
 db.products.createIndex({ categories: 1, "stock.quantity": 1 })
 
@@ -401,11 +403,11 @@ However, uniqueness will be limited to the keys covered by the partial filter ex
 10. Sparse indexes:
 
 These can be particularly useful for fields that are optional but which should also be unique.
-
-{ "_id" : "john@example.com", "nickname" : "Johnnie" }
-{ "_id" : "jane@example.com" }
-{ "_id" : "julia@example.com", "nickname" : "Jules"}
-{ "_id" : "jack@example.com" }
+db.emails.insert([
+{ "_id" : "john@example.com", "nickname" : "Johnnie" },
+{ "_id" : "jane@example.com" },
+{ "_id" : "julia@example.com", "nickname" : "Jules"},
+{ "_id" : "jack@example.com" }])
 Since two entries have no "nickname" specified and indexing will treat unspecified fields as null, 
 the index creation would fail with 2 documents having 'null', so:
 
@@ -432,13 +434,22 @@ db.textExample.insertOne({ "statement": "MongoDB is the worst." })
 db.textExample.createIndex({ statement: "text" })
 
 // Search for the phrase "MongoDB best"
-db.textExample.find({ $text: { $search: "MongoDB best" } })
+db.textExample.find({ $text: { $search: "mongodb best" } })
+{ "_id" : ObjectId("61c95c62c95ed8763a96c4eb"), "statement" : "MongoDB is the best" }
+{ "_id" : ObjectId("61c95c71c95ed8763a96c4ec"), "statement" : "MongoDB is the worst." }
+
+
+> db.textExample.find({$text: {$search: "mongodb"}})
+{ "_id" : ObjectId("61c95c71c95ed8763a96c4ec"), "statement" : "MongoDB is the worst." }
+{ "_id" : ObjectId("61c95c62c95ed8763a96c4eb"), "statement" : "MongoDB is the best" }
 
 // Display each document with it's "textScore"
 db.textExample.find({ $text: { $search : "MongoDB best" } }, { score: { $meta: "textScore" } })
+{ "_id" : ObjectId("61c95c62c95ed8763a96c4eb"), "statement" : "MongoDB is the best", "score" : 1.5 }
+{ "_id" : ObjectId("61c95c71c95ed8763a96c4ec"), "statement" : "MongoDB is the worst.", "score" : 0.75 }
 
-// Sort the documents by their textScore so that the most relevant documents
-// return first
+
+// Sort the documents by their textScore so that the most relevant documents return first
 db.textExample.find({ $text: { $search : "MongoDB best" } }, { score: { $meta: "textScore" } }).sort({ score: { $meta: "textScore" } })
 
 
@@ -629,3 +640,22 @@ db.stats()
 
 db.people.stats({indexDetails:true});
 还能看到更详细的信息，比如cache的情况等。
+
+17. hash index
+Hashed indexes use a hashing function to compute the hash of the value of the index field. 
+The hashing function collapses embedded documents and computes the hash for the entire value 
+but does not support multi-key (i.e. arrays) indexes. 
+Specifically, creating a hashed index on a field that contains an array or attempting to 
+insert an array into a hashed indexed field returns an error.
+
+Hashed indexes support sharding using hashed shard keys. 
+Hashed based sharding uses a hashed index of a field as the shard key to partition data across your sharded cluster.
+
+create a hash index:
+db.collection.createIndex( { _id: "hashed" } )
+
+Starting with MongoDB 4.4, MongoDB supports creating compound indexes that include a single hashed field. 
+To create a compound hashed index, specify hashed as the value of any single index key when creating the index:
+
+db.collection.createIndex( { "fieldA" : 1, "fieldB" : "hashed", "fieldC" : -1 } )
+
