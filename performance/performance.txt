@@ -699,3 +699,12 @@ db.restaurants.getIndexes()
 2） db.restaurants.unhideIndex
 db.restaurants.unhideIndex( { borough: 1, city: 1 } );  // Specify the index key specification document
 db.restaurants.unhideIndex( "borough_1_ratings_1" );    // Specify the index name
+
+19. TTL Index
+TTL indexes are special single-field indexes that MongoDB can use to 
+automatically remove documents from a collection after a certain amount of time 
+or at a specific clock time. 
+Data expiration is useful for certain types of information like machine generated event data, 
+logs, and session information that only need to persist in a database for a finite amount of time.
+
+db.eventlog.createIndex( { "lastModifiedDate": 1 }, { expireAfterSeconds: 3600 } )
