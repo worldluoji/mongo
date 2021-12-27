@@ -536,13 +536,43 @@ This can make it very difficult to plan an effective indexing strategy.
 For these workloads, we needed a way to be able to index on multiple fields without the overhead 
 of maintaining multiple indexes.
 
-b.userData.createIndex( { "userMetadata.$**" : 1 } )
+使用 MongoDB 时，经常会遇到一些场景，某个字段包含很多个属性，很多属性都可能需要用于查询，现在的解决方案时，针对每个属性，必须提前知道它的访问行为，建立必要的索引；MongoDB 4.2 引入 Wildcard Index，可以针对一系列的字段自动建索引，满足丰富的查询需求。
 
-The index can support the following queries:
-db.userData.find({ "userMetadata.likes" : "dogs" })
-db.userData.find({ "userMetadata.dislikes" : "pickles" })
-db.userData.find({ "userMetadata.age" : { $gt : 30 } })
-db.userData.find({ "userMetadata" : "inactive" })
+如下面的例子所示，书籍的 attribute 字段里包含很多熟悉，包括颜色、大小等信息，如果经常需要根据属性查找，可以针对 attribute 字段建立 Wildcard index。
+db.books.find()
+{ "_id" : ObjectId("5d0c5d931eefdf585ae9ca95"), "type" : "book", "title" : "The Red Book", "attributes" : { "color" : "red", "size" : "large", "inside" : { "bookmark" : 1, "postitnote" : 2 }, "outside" : { "dustcover" : "worn" } } }
+{ "_id" : ObjectId("5d0c5d9e1eefdf585ae9ca96"), "type" : "book", "title" : "The Blue Book", "attributes" : { "color" : "blue", "size" : "small", "inside" : { "map" : 1 }, "outside" : { "librarystamp" : "Local Library" } } }
+{ "_id" : ObjectId("5d0c5dac1eefdf585ae9ca97"), "type" : "book", "title" : "The Green Book", "attributes" : { "color" : "green", "size" : "small", "inside" : { "map" : 1, "bookmark" : 2 }, "outside" : { "librarystamp" : "Faraway Library", "dustcover" : "good" } } }
+
+// 没有索引的时候，根据颜色属性查找，走全表扫描
+db.books.find({"attributes.color": "green"}).explain()
+{
+    "queryPlanner" : {
+        "queryHash" : "528C4C03",
+        "planCacheKey" : "528C4C03",
+        "winningPlan" : {
+            "stage" : "COLLSCAN",
+}
+
+// 针对 attributes 字段所有的子字段建立 Wildcard 索引，针对 color、size 等的查询就都可以走索引
+db.books.createIndex({ "attributes.$**": 1 });
+
+db.books.find({"attributes.color": "green"}).explain()
+{
+    "queryPlanner" : {
+        "winningPlan" : {
+            "stage" : "FETCH",
+            "inputStage" : {
+                "stage" : "IXSCAN",
+}
+db.books.find({"attributes.size": "small"}).explain()
+{
+    "queryPlanner" : {
+        "winningPlan" : {
+            "stage" : "FETCH",
+            "inputStage" : {
+                "stage" : "IXSCAN",
+}
 
 
 db.collection.createIndex(
