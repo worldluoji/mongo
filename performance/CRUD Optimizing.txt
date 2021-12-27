@@ -68,7 +68,7 @@ exp.find({name: { $gt: 'L' }, cuisine: 'Sushi', stars: { $gte: 4.0 } }, { _id: 0
 可以coverd
 但是
 exp.find({name: { $gt: 'L' }, cuisine: 'Sushi', stars: { $gte: 4.0 } }, {stars: 1 })
-不可以。因为_id和name,stars在不通的索引上。
+不可以。因为_id和name,stars在不同的索引上。
 
 3. regular expression
 > db.products.createIndex({ productName: 1 })
