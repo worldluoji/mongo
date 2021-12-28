@@ -1,0 +1,115 @@
+Geospatial Query
+MongoDB supports query operations on geospatial data.
+In MongoDB, you can store geospatial data as GeoJSON objects or as legacy coordinate pairs.
+
+1) GeoJSON objects:
+<field>: { type: <GeoJSON type> , coordinates: <coordinates> }
+For example, to specify a GeoJSON Point:
+location: {
+      type: "Point",
+      coordinates: [-73.856077, 40.848447]
+}
+
+
+2) Legacy Coordinate Pairs
+To calculate distances on a Euclidean plane, store your location data 
+as legacy coordinate pairs and use a 2d index. 
+MongoDB supports spherical surface calculations on legacy coordinate pairs 
+via a 2dsphere index by converting the data to the GeoJSON Point type.
+
+Specify via an array (Preferred):
+<field>: [ <x>, <y> ]
+
+If specifying latitude and longitude coordinates, list the longitude first and then latitude; 
+<field>: [<longitude>, <latitude> ]
+
+Valid longitude values are between -180 and 180, both inclusive.
+Valid latitude values are between -90 and 90, both inclusive.
+Specify via an embedded document:
+<field>: { <field1>: <x>, <field2>: <y> }
+
+If specifying latitude and longitude coordinates, the first field, regardless of the field name, 
+must contains the longitude value and the second field, the latitude value ; 
+<field>: { <field1>: <longitude>, <field2>: <latitude> }
+
+3) Geospatial Index
+provides the following geospatial index types to support the geospatial queries.
+
+3.1) 2dsphere index
+2dsphere indexes support queries that calculate geometries on an earth-like sphere.
+db.collection.createIndex( { <location field> : "2dsphere" } )
+where the <location field> is a field whose value is either a GeoJSON object or a legacy coordinates pair.
+
+3.2) 2d index
+The 2d index supports queries that calculate distances on a Euclidean plane (flat surface).
+db.collection.createIndex( { <location field> : "2d" } )
+where the <location field> is a field whose value is a legacy coordinates pair.
+
+3.3) example: 2dsphere
+db.places.insertMany( [
+  {
+     name: "Central Park",
+     location: { type: "Point", coordinates: [ -73.97, 40.77 ] },
+     category: "Parks"
+  },
+  {
+     name: "Sara D. Roosevelt Park",
+     location: { type: "Point", coordinates: [ -73.9928, 40.7193 ] },
+     category: "Parks"
+  },
+  {
+     name: "Polo Grounds",
+     location: { type: "Point", coordinates: [ -73.9375, 40.8303 ] },
+     category: "Stadiums"
+  }
+] )
+
+db.places.createIndex( { location: "2dsphere" } )
+
+The following query uses the $near operator to return documents that are 
+at least 1000 meters from and at most 5000 meters from the specified GeoJSON point, 
+sorted in order from nearest to farthest
+db.places.find(
+  {
+    location:
+      { $near:
+         {
+           $geometry: { type: "Point",  coordinates: [ -73.9667, 40.78 ] },
+           $minDistance: 1000,
+           $maxDistance: 5000
+         }
+      }
+  }
+)
+
+The following operation uses the $geoNear aggregation operation to return documents 
+that match the query filter { category: "Parks" }, sorted in order of nearest to farthest 
+to the specified GeoJSON point:
+db.places.aggregate( [
+  {
+     $geoNear: {
+        near: { type: "Point", coordinates: [ -73.9667, 40.78 ] },
+        spherical: true,
+        query: { category: "Parks" },
+        distanceField: "calcDistance"
+     }
+  }
+] )
+
+spherical:
+Optional. Determines how MongoDB calculates the distance between two points:
+When true, MongoDB uses $nearSphere semantics and calculates distances using spherical geometry.
+When false, MongoDB uses $near semantics: spherical geometry for 2dsphere indexes and planar geometry for 2d indexes.
+Default: false.
+
+https://docs.mongodb.com/manual/geospatial-queries/
+
+example 2d index
+The following sections describe queries supported by the 2d index.
+
+The following query would return documents from the places collection 
+within the circle described by the center [ -74, 40.74 ] with a radius of 100 miles:
+db.places.find( { loc: { $geoWithin: { $centerSphere: [ [ -74, 40.74 ] ,
+                                                     100 / 3963.2 ] } } } )
+
+https://docs.mongodb.com/manual/tutorial/calculate-distances-using-spherical-geometry-with-2d-geospatial-indexes/
