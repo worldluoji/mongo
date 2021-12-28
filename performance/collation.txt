@@ -1,0 +1,130 @@
+Collation allows users to specify language-specific rules for string comparison, 
+such as rules for lettercase and accent marks.
+
+You can specify collation for a collection or a view, an index, or specific operations
+that support collation.
+
+简而言之，Collation特性允许MongoDB的用户根据不同的语言定制排序规则.
+
+// switch to the m201 database
+use m201
+
+// create a collection-level collation for Portuguese
+db.createCollection( "foreign_text", {collation: {locale: "pt"}})
+
+// insert an example document
+db.foreign_text.insert({ "name": "Máximo", "text": "Bom dia minha gente!"})
+
+// explain the following query (uses the Portuguese collation)
+db.foreign_text.find({ _id: {$exists:1 } } ).explain()
+......
+"collation" : {
+  "locale" : "pt",
+  "caseLevel" : false,
+  "caseFirst" : "off",
+  "strength" : 3,
+  "numericOrdering" : false,
+  "alternate" : "non-ignorable",
+  "maxVariable" : "punct",
+  "normalization" : false,
+  "backwards" : false,
+  "version" : "57.1"
+}
+......
+
+// specify an Italian collation for a find query
+db.foreign_text.find({ _id: {$exists:1 } }).collation({locale: 'it'})
+{ "_id" : ObjectId("61cad66477ef530d636f39b7"), "name" : "Máximo", "text" : "Bom dia minha gente!" }
+
+
+// specify a Spanish collation for an aggregation query
+db.foreign_text.aggregate([ {$match: { _id: {$exists:1 }  }}], {collation: {locale: 'es'}})
+
+// create an index with a collation that differs from the collection collation
+db.foreign_text.createIndex( {name: 1},  {collation: {locale: 'it'}} )
+
+// uses the collection collation (Portuguese)， can not use index
+db.foreign_text.find( {name: 'Máximo'}).explain()
+
+// uses the index collation (Italian)
+db.foreign_text.find( {name: 'Máximo'}).collation({locale: 'it'}).explain()
+
+
+For a compound index where the index prefix keys are not strings, arrays, and 
+embedded documents, an operation that specifies a different collation can still use the index to support comparisons on the index prefix keys.
+
+For example, the collection myColl has a compound index on the numeric fields score and 
+price and the string field category; the index is created with the collation locale "fr" for string comparisons:
+
+db.myColl.insertMany([
+  { score: 80, price: 100, category: 1,name:"test1" },
+ { score: 80, price: 100, category: 1 ,name:"test2" },
+ { score: 80, price: 100, category: 1,name:"test3"  }
+])
+
+db.myColl.createIndex(
+   { score: 1, price: 1, category: 1 },
+   { collation: { locale: "fr" } } )
+
+The following operations, which use "simple" binary collation for string comparisons, can use the index:
+
+db.myColl.find( { score: 5 } ).sort( { price: 1 } )
+db.myColl.find( { score: 5, price: { $gt: NumberDecimal( "10" ) } } ).sort( { price: 1 } )
+
+The following operation, which uses "simple" binary collation for string comparisons on the indexed category field, can use the index to fulfill only the score: 5 portion of the query:
+
+db.myColl.find( { score: 5, category: "cafe" } )
+db.myColl.find( { score: 5, price: 1, category: 1 } ).explain();
+
+db.myColl.dropIndex(
+  { score: 1, price: 1, category: 1 },
+  { collation: { locale: "fr" } } )
+
+db.myColl.createIndex(
+    { name: 1, price: 1, category: 1 },
+    { collation: { locale: "fr" } } )
+
+这时候，由于name为字符串，无法使用索引。
+db.myColl.find( { name: "test1"} ).explain();
+
+指定collation后，可以使用索引
+db.myColl.find( { name: "test1"} ).collation({locale:"fr"}).explain();
+
+db.myColl.dropIndex(
+    { name: 1, price: 1, category: 1 },
+    { collation: { locale: "fr" } } )
+
+db.myColl.createIndex(
+    { price: 1, name: 1, category: 1},
+    { collation: { locale: "fr" } } )
+
+db.myColl.find( { price: 100, name: "test1"} ).explain();
+也可以使用索引，因为name不是prefix
+
+
+// create a case-insensitive index via collations
+db.createCollection( "no_sensitivity", {collation: {locale: 'en', strength: 1}})
+"strength: 1" means that Collation performs comparisons of the base characters only, 
+ignoring other differences such as diacritics and case.
+
+这里还有个caseLevel参数：
+caseLevel boolean
+Optional. Flag that determines whether to include case comparison at strength level 1 or 2.
+If true, include case comparison; i.e.
+When used with strength:1, collation compares base characters and case.
+When used with strength:2, collation compares base characters, diacritics (and possible other secondary differences) and case.
+If false, do not include case comparison at level 1 or 2. The default is false.
+
+// insert some documents
+db.no_sensitivity.insert({name: 'aaaaa'})
+db.no_sensitivity.insert({name: 'aAAaa'})
+db.no_sensitivity.insert({name: 'AaAaa'})
+
+// sort them by name ascending
+db.no_sensitivity.find().sort({name:1})
+
+// even if we change the sort-order, the documents will be returned in the same
+// order because of the case-insensitive collation
+db.no_sensitivity.find().sort({name:-1})
+
+https://docs.mongodb.com/manual/reference/collation/?jmp=university
