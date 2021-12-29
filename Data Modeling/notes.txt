@@ -32,9 +32,7 @@ Correct Options:
 
 Embedding actors in movies creates duplication of actor information.
 Every actor who stars in more than one movie has their information copied 
-in each movie document they star in. 
-The information stored in the document may be as little as the actor's name, 
-however it is still duplication. 
+in each movie document they star in.
 Any duplicate information that changed would need to be updated in more than one location.
 
 Embedding actors in movies still requires a separate collection to store all actors.
@@ -87,7 +85,7 @@ Duplication: 3种情况可以使用。
 
 3）一部电影的总收入(通过另一个collection计算出来)，可以作为duplication信息放到movie中，方便展示。
 
-但upliction一定要考虑更新的
+dupliction一定要考虑更新的
 
 Staleness
 即用户访问到了失效的数据；用户没有访问到最新的数据。
@@ -108,8 +106,7 @@ This is one of the main reason you should use this pattern.
 Alternatively to using the pattern for this situation, MongoDB introduces Wildcard Indexes 
 that allow to index together a list of fields.
 
-
-1) 尽量较少index
+1) 尽量少的index
 index最小化原则，够用即可，index会影响插入和更新的性能
 
 2) key-value 不要作为一个单独的属性，而是放到子数组中
